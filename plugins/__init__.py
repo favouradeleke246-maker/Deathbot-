@@ -19,5 +19,3 @@ def load_plugins(orchestrator):
         except Exception as e:
             logger.error(f"Failed to load plugin {name}: {e}")
     return plugins
-# Load plugins
-self.plugins = load_plugins(self)
