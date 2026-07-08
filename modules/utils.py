@@ -1,4 +1,10 @@
-import random, time, logging, requests, json, psycopg2, psycopg2.extras
+import random
+import time
+import logging
+import requests
+import json
+import psycopg2
+import psycopg2.extras
 from config import DATABASE_URL, PROXY_LIST, PROCESSING_TIMEOUT
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +28,6 @@ def rate_limit(min_sec=1, max_sec=5):
     time.sleep(random.uniform(min_sec, max_sec))
 
 def safe_request(method, url, **kwargs):
-    """Use proxy, UA, and timeout from config."""
     proxies = None
     proxy = random_proxy()
     if proxy:
