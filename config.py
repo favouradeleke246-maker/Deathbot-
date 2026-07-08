@@ -9,6 +9,4 @@ SMS_GATEWAY_API_KEY = os.getenv('SMS_GATEWAY_API_KEY', '')
 SMS_GATEWAY_URL = os.getenv('SMS_GATEWAY_URL', 'https://api.smsgateway.com/send')
 PROXY_LIST = os.getenv('PROXY_LIST', '').split(',') if os.getenv('PROXY_LIST') else []
 PLUGIN_DIR = 'modules/plugins'
-
-# NEW: Timeout for all operations (in seconds)
 PROCESSING_TIMEOUT = int(os.getenv('PROCESSING_TIMEOUT', '120'))
