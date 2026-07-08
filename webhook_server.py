@@ -1,4 +1,7 @@
-import os, json, requests, threading
+import os
+import json
+import requests
+import threading
 from flask import Flask, request
 from orchestrator import Orchestrator
 from config import TELEGRAM_TOKEN
