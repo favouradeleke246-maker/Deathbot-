@@ -24,6 +24,8 @@ class Orchestrator:
         self.wa_rce = WhatsAppZeroClickRCE()
         self.wa_fp = WaDeliveryFingerprint()
         self.verify = Verify()
+        # Load plugins
+        self.plugins = load_plugins(self)
 
     def track(self, identifier):
         if '@' in identifier:
@@ -78,6 +80,5 @@ class Orchestrator:
         return db_list_targets()
 
     def social_engineer(self, params):
-        # Generate a realistic phishing message (simplified)
         msg = f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
         return {'success': True, 'output': msg}
