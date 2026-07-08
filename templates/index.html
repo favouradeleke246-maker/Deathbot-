@@ -10,9 +10,10 @@
         body { background: #f8f9fa; padding-top: 20px; }
         .card { border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .table th { background: #212529; color: white; }
+        .badge-auto { background: #0d6efd; }
         .badge-verified { background: #198754; }
         .badge-unverified { background: #dc3545; }
-        .badge-auto { background: #0d6efd; }
+        .progress { height: 20px; }
     </style>
 </head>
 <body>
@@ -21,8 +22,8 @@
             <div class="col">
                 <div class="card">
                     <div class="card-body">
-                        <h1 class="display-6"><i class="fas fa-robot"></i> Exploit Bot Dashboard</h1>
-                        <p class="text-muted">Monitor all tracked targets and their intelligence data.</p>
+                        <h1><i class="fas fa-robot"></i> Exploit Bot Dashboard</h1>
+                        <p class="text-muted">Monitor all tracked targets and intelligence data.</p>
                     </div>
                 </div>
             </div>
@@ -37,13 +38,13 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered" id="targetTable">
+                            <table class="table table-hover table-bordered">
                                 <thead>
                                     <tr>
                                         <th>ID</th>
                                         <th>Identifier</th>
                                         <th>Platform</th>
-                                        <th>Profiles Found</th>
+                                        <th>Profiles</th>
                                         <th>Risk Score</th>
                                         <th>Created</th>
                                         <th>Actions</th>
@@ -53,10 +54,7 @@
                                     {% for t in targets %}
                                     <tr>
                                         <td><strong>{{ t.id }}</strong></td>
-                                        <td>
-                                            <i class="fas fa-user-circle"></i> {{ t.identifier }}
-                                            <br><small class="text-muted">{{ t.osint|length }} OSINT entries</small>
-                                        </td>
+                                        <td><i class="fas fa-user-circle"></i> {{ t.identifier }}</td>
                                         <td>
                                             <span class="badge {{ 'badge-auto' if t.platform == 'auto' else 'badge-verified' }}">
                                                 {{ t.platform or 'unknown' }}
@@ -67,9 +65,9 @@
                                             {{ total }}
                                         </td>
                                         <td>
-                                            {% set risk = t.osint|length * 5 if t.osint else 0 %}
+                                            {% set risk = total * 5 if t.osint else 0 %}
                                             {% set risk = 100 if risk > 100 else risk %}
-                                            <div class="progress" style="height:20px;">
+                                            <div class="progress">
                                                 <div class="progress-bar 
                                                     {% if risk < 30 %}bg-success
                                                     {% elif risk < 60 %}bg-warning
@@ -88,16 +86,13 @@
                                             <button class="btn btn-sm btn-info" onclick="viewTarget({{ t.id }})">
                                                 <i class="fas fa-eye"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-danger" onclick="deleteTarget({{ t.id }})">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
                                         </td>
                                     </tr>
                                     {% else %}
                                     <tr>
                                         <td colspan="7" class="text-center text-muted">
                                             <i class="fas fa-inbox fa-2x d-block mb-2"></i>
-                                            No targets found. Start by using <code>/track</code> on Telegram.
+                                            No targets found. Use <code>/track</code> on Telegram.
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -108,76 +103,15 @@
                 </div>
             </div>
         </div>
-
-        <div class="row mt-4">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <i class="fas fa-chart-line"></i> Quick Stats
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Total Targets
-                                <span class="badge bg-primary rounded-pill">{{ targets|length }}</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Average Risk Score
-                                <span class="badge bg-warning rounded-pill">
-                                    {% set total_risk = 0 %}
-                                    {% for t in targets %}
-                                        {% set total_risk = total_risk + (t.osint|length * 5 if t.osint else 0) %}
-                                    {% endfor %}
-                                    {{ (total_risk / targets|length)|round(0) if targets|length > 0 else 0 }}
-                                </span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <i class="fas fa-info-circle"></i> System Status
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Database
-                                <span class="badge bg-success rounded-pill"><i class="fas fa-check"></i> Connected</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                AI Status
-                                <span class="badge bg-success rounded-pill"><i class="fas fa-check"></i> Ready</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Webhook
-                                <span class="badge bg-success rounded-pill"><i class="fas fa-check"></i> Active</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
         function viewTarget(id) {
             fetch(`/api/target/${id}`)
                 .then(response => response.json())
-                .then(data => {
-                    alert(JSON.stringify(data, null, 2));
-                })
-                .catch(error => alert('Error fetching target: ' + error));
+                .then(data => alert(JSON.stringify(data, null, 2)))
+                .catch(error => alert('Error: ' + error));
         }
-
-        function deleteTarget(id) {
-            if (confirm('Are you sure you want to delete target ' + id + '?')) {
-                alert('Delete functionality requires backend implementation.');
-                // In production, send DELETE request to /api/target/<id>
-            }
-        }
-
         // Auto-refresh every 30 seconds
         setTimeout(() => location.reload(), 30000);
     </script>
