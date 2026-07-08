@@ -11,6 +11,7 @@ from modules.wa_delivery_fingerprint import WaDeliveryFingerprint
 from modules.verification import Verify
 from modules.utils import db_insert_target, db_get_target, db_update_target_profile, db_log_attack, db_list_targets
 from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL
+from plugins import load_plugins
 
 class Orchestrator:
     def __init__(self):
