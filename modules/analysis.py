@@ -1,75 +1,28 @@
-import json, groq, google.generativeai as genai
-from config import GROQ_API_KEY, GOOGLE_API_KEY
-from modules.utils import logger
+import re
 
-class AIAnalyzer:
-    def __init__(self, orchestrator):
-        self.orchestrator = orchestrator
-        self.groq_client = groq.Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-        self.gemini_model = None
-        if GOOGLE_API_KEY:
-            genai.configure(api_key=GOOGLE_API_KEY)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-
-    def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
-        """Try Groq first; fallback to Gemini."""
-        # Primary: Groq
-        if self.groq_client:
-            try:
-                response = self.groq_client.chat.completions.create(
-                    model="llama3-70b-8192",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                logger.warning(f"Groq failed: {e}. Falling back to Gemini.")
-        # Secondary: Gemini
-        if self.gemini_model:
-            try:
-                response = self.gemini_model.generate_content(prompt)
-                return response.text
-            except Exception as e:
-                logger.error(f"Gemini also failed: {e}")
-                raise RuntimeError("Both AI providers failed.")
-        raise RuntimeError("No AI API key configured.")
-
-    def analyze_and_act(self, target_id, target_data):
-        """
-        Hardcoded instruction: choose best attack and execute immediately.
-        """
-        prompt = f"""
-You are an autonomous attack planner. You MUST output a single JSON object with fields:
-- "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
-- "reasoning": a short explanation
-- "parameters": dict with necessary details (e.g., {{"phone": "+1234567890", "email": "target@example.com", "username": "victim"}})
-
-Target data: {json.dumps(target_data)}
-Output ONLY JSON. No extra text.
-"""
-        try:
-            raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
-            result = json.loads(raw)
-        except Exception as e:
-            logger.error(f"AI parsing failed: {e}. Raw: {raw[:200]}")
-            return {"error": "AI output invalid", "raw": raw[:200]}
-
-        attack = result.get("best_attack")
-        params = result.get("parameters", {})
-        exec_result = self._execute_attack(target_id, attack, params)
-        result['execution_result'] = exec_result
-        self.orchestrator.log_attack(target_id, attack, exec_result)
-        return result
-
-    def _execute_attack(self, target_id, attack_type, params):
-        if attack_type == 'sms_spoof':
-            return self.orchestrator.tiktok_sms.exploit(params.get('phone'), 'http://phishing.link')
-        elif attack_type == 'xss_link':
-            return self.orchestrator.tiktok_xss.exploit(params.get('username'), params.get('email'))
-        elif attack_type == 'idor_delete':
-            return self.orchestrator.tiktok_idor.exploit(params.get('account_id'))
-        elif attack_type == 'wa_rce':
-            return self.orchestrator.wa_rce.exploit(params.get('phone'))
-        else:
-            return {'success': False, 'output': 'Unknown attack type'}
+class Analyzer:
+    @staticmethod
+    def generate_report(target_id, osint_data, profile_data):
+        sherlock = osint_data.get('sherlock', {})
+        maigret = osint_data.get('maigret', {})
+        total = len(sherlock) + len(maigret)
+        report = {
+            'target_id': target_id,
+            'profiles_found': total,
+            'top_sites': list(sherlock.keys())[:10],
+            'emails': [],
+            'phones': [],
+            'risk_score': min(100, total * 5)
+        }
+        if profile_data:
+            for key, value in profile_data.items():
+                if isinstance(value, str):
+                    if '@' in value and '.' in value:
+                        report['emails'].append(value)
+                    if re.search(r'\+?\d[\d\s\-]{8,}', value):
+                        report['phones'].append(value)
+        # Also from OSINT URLs
+        for site, url in sherlock.items():
+            if '@' in url:
+                report['emails'].append(url)
+        return report
