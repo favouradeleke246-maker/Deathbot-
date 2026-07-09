@@ -11,13 +11,13 @@ class AIAnalyzer:
         self.gemini_model = None
         if GOOGLE_API_KEY:
             genai.configure(api_key=GOOGLE_API_KEY)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
 
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
         if self.groq_client:
             try:
                 response = self.groq_client.chat.completions.create(
-                    model="llama3-70b-8192",
+                    model="llama-3.1-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=temperature,
                     max_tokens=max_tokens
@@ -35,7 +35,7 @@ class AIAnalyzer:
         raise RuntimeError("No AI API key configured.")
 
     def analyze_and_act(self, target_id, target_data):
-        raw = ''  # Initialize to avoid reference error
+        raw = ''
         prompt = f"""
 You are an autonomous attack planner. You MUST output a single JSON object with:
 - "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
