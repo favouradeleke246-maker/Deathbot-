@@ -35,6 +35,7 @@ class AIAnalyzer:
         raise RuntimeError("No AI API key configured.")
 
     def analyze_and_act(self, target_id, target_data):
+        raw = ''  # Initialize to avoid reference error
         prompt = f"""
 You are an autonomous attack planner. You MUST output a single JSON object with:
 - "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
@@ -48,8 +49,8 @@ Output ONLY JSON. No extra text.
             raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
             result = json.loads(raw)
         except Exception as e:
-            logger.error(f"AI parsing failed: {e}. Raw: {raw[:200]}")
-            return {"error": "AI output invalid", "raw": raw[:200]}
+            logger.error(f"AI parsing failed: {e}. Raw: {raw[:200] if raw else 'empty'}")
+            return {"error": "AI output invalid", "raw": raw[:200] if raw else ''}
 
         attack = result.get("best_attack")
         params = result.get("parameters", {})
