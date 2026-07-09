@@ -16,7 +16,7 @@ class Orchestrator:
     def __init__(self):
         self.ai = AIAnalyzer(self)
         self.osint = OSINTEngine()
-        self.retriever = None   # lazy-loaded
+        self._retriever = None  # lazy
         self.tiktok_xss = TikTokXSS_CSRF()
         self.tiktok_idor = TikTokIDORDelete(TIKTOK_SESSION, '123456') if TIKTOK_SESSION else None
         self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
@@ -24,6 +24,17 @@ class Orchestrator:
         self.wa_fp = WaDeliveryFingerprint()
         self.verify = Verify()
         self.plugins = load_plugins(self)
+
+    @property
+    def retriever(self):
+        if self._retriever is None:
+            try:
+                from modules.retrieval import ProfileRetriever
+                self._retriever = ProfileRetriever()
+            except Exception as e:
+                logger.error(f"ProfileRetriever init failed: {e}")
+                self._retriever = None
+        return self._retriever
 
     def track(self, identifier):
         if '@' in identifier:
@@ -37,11 +48,7 @@ class Orchestrator:
 
     def retrieve(self, target_id, platform):
         if self.retriever is None:
-            try:
-                from modules.retrieval import ProfileRetriever
-                self.retriever = ProfileRetriever()
-            except Exception as e:
-                return {'error': f'Scraper init failed: {str(e)}. Install Chrome.'}
+            return {'error': 'Retrieval module unavailable (Chrome missing).'}
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
