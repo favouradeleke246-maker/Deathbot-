@@ -1,7 +1,6 @@
 import json
 from modules.ai_analysis import AIAnalyzer
 from modules.osint import OSINTEngine
-from modules.retrieval import ProfileRetriever
 from modules.analysis import Analyzer
 from modules.tiktok_xss_csrf import TikTokXSS_CSRF
 from modules.tiktok_idor_delete import TikTokIDORDelete
@@ -17,14 +16,14 @@ class Orchestrator:
     def __init__(self):
         self.ai = AIAnalyzer(self)
         self.osint = OSINTEngine()
-        self.retriever = ProfileRetriever()
+        # Do NOT instantiate ProfileRetriever here – lazy load
+        self.retriever = None
         self.tiktok_xss = TikTokXSS_CSRF()
         self.tiktok_idor = TikTokIDORDelete(TIKTOK_SESSION, '123456') if TIKTOK_SESSION else None
         self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
         self.wa_rce = WhatsAppZeroClickRCE()
         self.wa_fp = WaDeliveryFingerprint()
         self.verify = Verify()
-        # Load plugins
         self.plugins = load_plugins(self)
 
     def track(self, identifier):
@@ -38,15 +37,26 @@ class Orchestrator:
         return {'target_id': target_id, 'osint': res, 'ai_action': ai_result}
 
     def retrieve(self, target_id, platform):
+        # Lazy‑load ProfileRetriever only when needed
+        if self.retriever is None:
+            try:
+                from modules.retrieval import ProfileRetriever
+                self.retriever = ProfileRetriever()
+            except Exception as e:
+                return {'error': f'Failed to initialize scraper: {str(e)}. Make sure Chrome is installed.'}
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
         if platform.lower() == 'tiktok':
-            profile = self.retriever.get_tiktok_profile(target['identifier'])
-            if profile:
-                db_update_target_profile(target_id, profile)
-                return profile
-            return {'error': 'Profile retrieval failed'}
+            try:
+                profile = self.retriever.get_tiktok_profile(target['identifier'])
+                if profile:
+                    db_update_target_profile(target_id, profile)
+                    return profile
+                else:
+                    return {'error': 'Profile retrieval failed'}
+            except Exception as e:
+                return {'error': f'Scraping error: {str(e)}'}
         return {'error': 'Unsupported platform'}
 
     def analyze(self, target_id):
