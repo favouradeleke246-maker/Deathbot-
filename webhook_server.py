@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import threading
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from orchestrator import Orchestrator
 from config import TELEGRAM_TOKEN
 
@@ -75,7 +75,7 @@ def webhook():
     try:
         if cmd == '/start':
             reply = (
-                "🤖 Masterpiece Exploit Bot\n"
+                "🤖 SpectraX – Silent Intelligence\n"
                 "/track <id> – OSINT + auto‑attack\n"
                 "/retrieve <tid> <platform>\n"
                 "/analyze <tid>\n"
@@ -98,5 +98,28 @@ def webhook():
     send_message(chat_id, reply)
     return 'OK', 200
 
+# ---------- HEALTH CHECK ENDPOINT ----------
+@app.route('/health', methods=['GET'])
+def health():
+    try:
+        from modules.utils import get_db_connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        conn.close()
+        db_ok = True
+    except Exception as e:
+        db_ok = False
+        print(f"Health DB check failed: {e}")
+    ai_ok = bool(orch.ai.groq_client or orch.ai.gemini_model)
+    status = "ok" if db_ok else "degraded"
+    return jsonify({
+        "status": status,
+        "database": db_ok,
+        "ai": ai_ok,
+        "service": "SpectraX"
+    }), 200 if db_ok else 503
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
