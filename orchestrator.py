@@ -16,8 +16,7 @@ class Orchestrator:
     def __init__(self):
         self.ai = AIAnalyzer(self)
         self.osint = OSINTEngine()
-        # Do NOT instantiate ProfileRetriever here – lazy load
-        self.retriever = None
+        self.retriever = None   # lazy-loaded
         self.tiktok_xss = TikTokXSS_CSRF()
         self.tiktok_idor = TikTokIDORDelete(TIKTOK_SESSION, '123456') if TIKTOK_SESSION else None
         self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
@@ -37,13 +36,12 @@ class Orchestrator:
         return {'target_id': target_id, 'osint': res, 'ai_action': ai_result}
 
     def retrieve(self, target_id, platform):
-        # Lazy‑load ProfileRetriever only when needed
         if self.retriever is None:
             try:
                 from modules.retrieval import ProfileRetriever
                 self.retriever = ProfileRetriever()
             except Exception as e:
-                return {'error': f'Failed to initialize scraper: {str(e)}. Make sure Chrome is installed.'}
+                return {'error': f'Scraper init failed: {str(e)}. Install Chrome.'}
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
