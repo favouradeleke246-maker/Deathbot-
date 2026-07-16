@@ -1,50 +1,29 @@
-import os
 import json
 import groq
-import google.generativeai as genai
-from config import GROQ_API_KEY, GOOGLE_API_KEY
+from config import GROQ_API_KEY
 from modules.utils import logger
 
 class AIAnalyzer:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
         self.groq_client = groq.Client(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-        self.gemini_model = None
-        if GOOGLE_API_KEY:
-            genai.configure(api_key=GOOGLE_API_KEY)
-            # Updated to a working model
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
-        raw = None
-        if self.groq_client:
-            try:
-                response = self.groq_client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                raw = response.choices[0].message.content
-                print(f"Groq response: {raw[:100]}...")
-                return raw
-            except Exception as e:
-                print(f"Groq detailed error: {type(e).__name__}: {e}")
-                logger.warning(f"Groq failed: {e}. Falling back to Gemini.")
-        if self.gemini_model:
-            try:
-                response = self.gemini_model.generate_content(prompt)
-                raw = response.text
-                print(f"Gemini response: {raw[:100]}...")
-                return raw
-            except Exception as e:
-                print(f"Gemini detailed error: {type(e).__name__}: {e}")
-                logger.error(f"Gemini also failed: {e}")
-                raise RuntimeError(f"Both AI providers failed. Last error: {e}")
-        raise RuntimeError("No AI API key configured.")
+        if not self.groq_client:
+            raise RuntimeError("Groq API key not configured.")
+        try:
+            response = self.groq_client.chat.completions.create(
+                model="llama-3.1-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"Groq API error: {e}")
+            raise RuntimeError(f"Groq failed: {e}")
 
     def analyze_and_act(self, target_id, target_data):
-        raw = ""
         prompt = f"""
 You are an autonomous attack planner. You MUST output a single JSON object with:
 - "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
@@ -58,11 +37,12 @@ Output ONLY JSON. No extra text.
             raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
             result = json.loads(raw)
         except Exception as e:
-            print(f"AI parsing failed: {e}. Raw: {raw[:200] if raw else 'empty'}")
-            logger.error(f"AI parsing failed: {e}. Using fallback.")
+            logger.error(f"AI processing failed: {e}")
+            # Return a structured error so the user knows AI is down
             return {
-                "best_attack": "xss_link",
-                "reasoning": f"Fallback due to AI error: {str(e)}",
+                "error": f"AI unavailable: {str(e)}",
+                "best_attack": "xss_link",  # fallback
+                "reasoning": "AI failed, using default attack",
                 "parameters": {"username": target_data.get("identifier", ""), "email": "fallback@example.com"}
             }
 
