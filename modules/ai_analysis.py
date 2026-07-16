@@ -12,7 +12,8 @@ class AIAnalyzer:
         self.gemini_model = None
         if GOOGLE_API_KEY:
             genai.configure(api_key=GOOGLE_API_KEY)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
+            # Updated to a working model
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
 
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
         raw = None
