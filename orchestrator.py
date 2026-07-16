@@ -40,6 +40,7 @@ class Orchestrator:
         return self._retriever
 
     def track(self, identifier):
+        """Run OSINT on identifier, store in DB, and auto-attack via AI."""
         if '@' in identifier:
             res = self.osint.scan_email(identifier)
         else:
@@ -50,6 +51,7 @@ class Orchestrator:
         return {'target_id': target_id, 'osint': res, 'ai_action': ai_result}
 
     def retrieve(self, target_id, platform):
+        """Retrieve profile data (e.g., TikTok) for a given target."""
         if self.retriever is None:
             return {'error': 'Retrieval module unavailable (Chrome missing).'}
         target = db_get_target(target_id)
@@ -67,22 +69,26 @@ class Orchestrator:
         return {'error': 'Unsupported platform'}
 
     def analyze(self, target_id):
+        """Generate a risk report for a target."""
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
         return Analyzer.generate_report(target_id, target.get('osint', {}), target.get('profile', {}))
 
     def hack_tiktok(self, username, email):
+        """Execute TikTok XSS + CSRF attack and optional IDOR deletion."""
         xss = self.tiktok_xss.exploit(username, email)
         idor = self.tiktok_idor.exploit('TARGET_ACCOUNT_ID') if self.tiktok_idor else None
         return {'xss': xss, 'idor': idor}
 
     def hack_whatsapp(self, phone):
+        """Execute WhatsApp RCE and fingerprinting."""
         rce = self.wa_rce.exploit(phone)
         fp = self.wa_fp.exploit(phone)
         return {'rce': rce, 'fingerprint': fp}
 
     def verify(self, target_id, platform):
+        """Verify if target is compromised (WhatsApp registration check)."""
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
@@ -91,11 +97,28 @@ class Orchestrator:
         return {'success': False, 'output': 'Platform not supported'}
 
     def log_attack(self, target_id, attack_type, result):
+        """Log an attack attempt to the database."""
         db_log_attack(target_id, attack_type, result)
 
     def list_targets(self):
+        """Return all tracked targets."""
         return db_list_targets()
 
     def social_engineer(self, params):
-        msg = f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
-        return {'success': True, 'output': msg}    
+        """
+        Generate a realistic phishing message using AI (or fallback).
+        """
+        target_info = params.get('target_info', '')
+        if self.ai and self.ai.groq_client:
+            try:
+                prompt = f"Generate a convincing SMS or email to trick a user into clicking a malicious link. Target info: {target_info}. Keep it short and urgent."
+                response = self.ai._call_llm(prompt, max_tokens=100, temperature=0.7)
+                return {'success': True, 'output': response}
+            except Exception as e:
+                return {'success': False, 'output': f'AI generation failed: {e}'}
+        else:
+            # Fallback if AI is not available
+            return {
+                'success': True,
+                'output': f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
+            }
