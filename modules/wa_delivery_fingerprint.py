@@ -4,10 +4,15 @@ from modules.utils import random_proxy, random_user_agent, logger
 
 class WaDeliveryFingerprint:
     def exploit(self, phone):
-        # Remove non‑numeric characters and ensure country code
+        # Clean and format phone
         cleaned = re.sub(r'[^0-9+]', '', phone)
         if not cleaned.startswith('+'):
             cleaned = '+' + cleaned
+        # Remove extra zero after country code
+        match = re.match(r'^\+(\d+)(0+)(\d+)$', cleaned)
+        if match:
+            country, zeros, rest = match.groups()
+            cleaned = '+' + country + rest
         if len(cleaned) < 10:
             return {'success': False, 'output': 'Phone number too short. Must include country code.'}
 
