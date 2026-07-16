@@ -10,51 +10,18 @@ app = Flask(__name__)
 orch = Orchestrator()
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-def send_message(chat_id, text):
-    payload = {'chat_id': chat_id, 'text': text[:4096], 'parse_mode': 'Markdown'}
-    try:
-        requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
-    except Exception as e:
-        print(f"Send failed: {e}")
-
-def process_long_task(chat_id, func, *args, **kwargs):
-    def wrapper():
-        try:
-            result = func(*args, **kwargs)
-            send_message(chat_id, json.dumps(result, indent=2))
-        except Exception as e:
-            send_message(chat_id, f"⚠️ Error: {str(e)}")
-    thread = threading.Thread(target=wrapper)
-    thread.daemon = True
-    thread.start()
-
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.get_json()
-    if not data or 'message' not in data:
- 
-import os
-import json
-import requests
-import threading
-from flask import Flask, request, jsonify
-from orchestrator import Orchestrator
-from config import TELEGRAM_TOKEN
-
-app = Flask(__name__)
-orch = Orchestrator()
-TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
-
 # ---------- Helper Functions ----------
 def send_typing(chat_id):
-    """Show 'typing…' animation to the user."""
+    """Show 'typing…' animation."""
     try:
-        requests.post(f"{TELEGRAM_API}/sendChatAction", json={"chat_id": chat_id, "action": "typing"}, timeout=5)
+        requests.post(f"{TELEGRAM_API}/sendChatAction",
+                      json={"chat_id": chat_id, "action": "typing"},
+                      timeout=5)
     except Exception:
         pass
 
 def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
-    """Send a formatted message with optional inline or reply keyboard."""
+    """Send a formatted message."""
     payload = {
         'chat_id': chat_id,
         'text': text[:4096],
@@ -68,7 +35,7 @@ def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
         print(f"Send failed: {e}")
 
 def process_long_task(chat_id, func, *args, **kwargs):
-    """Run long tasks in background to avoid Railway timeout."""
+    """Run long tasks in background."""
     def wrapper():
         try:
             result = func(*args, **kwargs)
@@ -79,8 +46,8 @@ def process_long_task(chat_id, func, *args, **kwargs):
     thread.daemon = True
     thread.start()
 
-# ---------- Build Persistent Keyboard ----------
 def get_main_keyboard():
+    """Persistent keyboard with emoji buttons."""
     return {
         "keyboard": [
             ["🔍 Track", "📊 Analyze"],
@@ -99,12 +66,8 @@ def webhook():
     if not data:
         return 'OK', 200
 
-    # Handle callback queries (inline buttons) if any
+    # Handle callback queries (if you add inline buttons)
     if 'callback_query' in data:
-        callback = data['callback_query']
-        chat_id = callback['message']['chat']['id']
-        data = callback['data']
-        # You can handle callback data here – for simplicity we use reply keyboard
         return 'OK', 200
 
     if 'message' not in data:
@@ -116,7 +79,7 @@ def webhook():
     if not text:
         return 'OK', 200
 
-    # Send typing indicator immediately
+    # Show typing indicator
     send_typing(chat_id)
 
     # Parse command
@@ -124,8 +87,8 @@ def webhook():
     cmd = parts[0].lower()
     args = parts[1:]
 
-    # ---------- Command Handlers ----------
     try:
+        # ---------- Command Handlers ----------
         if cmd == '/start' or cmd == '❓ help' or cmd == 'help':
             reply = (
                 "🤖 <b>SpectraX – Silent Intelligence</b>\n\n"
@@ -144,9 +107,7 @@ def webhook():
                 send_message(chat_id, reply)
             else:
                 ident = args[0]
-                # Send immediate "processing" message
                 send_message(chat_id, "⏳ <b>Tracking...</b> Please wait.")
-                # Run in background to avoid timeout
                 threading.Thread(target=process_long_task, args=(chat_id, orch.track, ident)).start()
 
         elif cmd == '/retrieve':
