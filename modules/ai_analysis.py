@@ -25,7 +25,7 @@ class AIAnalyzer:
                     max_tokens=max_tokens
                 )
                 raw = response.choices[0].message.content
-                print(f"Groq response: {raw[:100]}...")  # visible in logs
+                print(f"Groq response: {raw[:100]}...")
                 return raw
             except Exception as e:
                 print(f"Groq detailed error: {type(e).__name__}: {e}")
@@ -59,10 +59,9 @@ Output ONLY JSON. No extra text.
         except Exception as e:
             print(f"AI parsing failed: {e}. Raw: {raw[:200] if raw else 'empty'}")
             logger.error(f"AI parsing failed: {e}. Using fallback.")
-            # ----- FALLBACK ATTACK -----
             return {
                 "best_attack": "xss_link",
-                "reasoning": "Fallback due to AI error. Original error: " + str(e),
+                "reasoning": f"Fallback due to AI error: {str(e)}",
                 "parameters": {"username": target_data.get("identifier", ""), "email": "fallback@example.com"}
             }
 
