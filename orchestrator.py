@@ -1,4 +1,5 @@
 import json
+import logging
 from modules.ai_analysis import AIAnalyzer
 from modules.osint import OSINTEngine
 from modules.analysis import Analyzer
@@ -12,11 +13,13 @@ from modules.utils import db_insert_target, db_get_target, db_update_target_prof
 from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL
 from plugins import load_plugins
 
+logger = logging.getLogger(__name__)
+
 class Orchestrator:
     def __init__(self):
         self.ai = AIAnalyzer(self)
         self.osint = OSINTEngine()
-        self._retriever = None  # lazy
+        self._retriever = None
         self.tiktok_xss = TikTokXSS_CSRF()
         self.tiktok_idor = TikTokIDORDelete(TIKTOK_SESSION, '123456') if TIKTOK_SESSION else None
         self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
@@ -58,8 +61,7 @@ class Orchestrator:
                 if profile:
                     db_update_target_profile(target_id, profile)
                     return profile
-                else:
-                    return {'error': 'Profile retrieval failed'}
+                return {'error': 'Profile retrieval failed'}
             except Exception as e:
                 return {'error': f'Scraping error: {str(e)}'}
         return {'error': 'Unsupported platform'}
