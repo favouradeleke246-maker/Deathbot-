@@ -10,7 +10,7 @@ app = Flask(__name__)
 orch = Orchestrator()
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-# ---------- Alias mapping for buttons ----------
+# ---------- Alias mapping ----------
 COMMAND_ALIASES = {
     '/start': ['/start', '❓ help', 'help'],
     '/track': ['/track', '🔍 track', 'track'],
@@ -23,14 +23,13 @@ COMMAND_ALIASES = {
 }
 
 def get_command(text):
-    """Return canonical command from text or None."""
     text_lower = text.strip().lower()
     for canonical, aliases in COMMAND_ALIASES.items():
         if text_lower in [a.lower() for a in aliases]:
             return canonical
     return None
 
-# ---------- Helper Functions ----------
+# ---------- Helpers ----------
 def send_typing(chat_id):
     try:
         requests.post(f"{TELEGRAM_API}/sendChatAction",
@@ -56,7 +55,12 @@ def process_long_task(chat_id, func, *args, **kwargs):
     def wrapper():
         try:
             result = func(*args, **kwargs)
-            send_message(chat_id, json.dumps(result, indent=2))
+            # Convert datetime objects to ISO strings for JSON
+            def default_serializer(obj):
+                if hasattr(obj, 'isoformat'):
+                    return obj.isoformat()
+                raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+            send_message(chat_id, json.dumps(result, indent=2, default=default_serializer))
         except Exception as e:
             send_message(chat_id, f"⚠️ <b>Error:</b> {str(e)}")
     thread = threading.Thread(target=wrapper)
@@ -75,7 +79,7 @@ def get_main_keyboard():
         "one_time_keyboard": False
     }
 
-# ---------- Flask Routes ----------
+# ---------- Routes ----------
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
@@ -96,17 +100,15 @@ def webhook():
 
     send_typing(chat_id)
 
-    # Resolve command alias
+    # Resolve command
     cmd = get_command(text)
     if cmd is None:
-        # If text starts with '/', it might be a direct command
         if text.startswith('/'):
-            cmd = text.lower().split()[0]
+            cmd = text.split()[0].lower()
         else:
             send_message(chat_id, "❓ <b>Unknown command.</b> Type <code>/start</code> for help.")
             return 'OK', 200
 
-    # Extract arguments
     parts = text.split()
     args = parts[1:] if len(parts) > 1 else []
 
@@ -137,13 +139,17 @@ def webhook():
                 reply = "❌ <b>Usage:</b> <code>/retrieve &lt;target_id&gt; &lt;platform&gt;</code>"
                 send_message(chat_id, reply)
             else:
-                tid, plat = int(args[0]), args[1]
-                send_message(chat_id, f"⏳ <b>Retrieving</b> from {plat}...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.retrieve, tid, plat)).start()
+                try:
+                    tid = int(args[0])
+                    plat = args[1]
+                    send_message(chat_id, f"⏳ <b>Retrieving</b> from {plat}...")
+                    threading.Thread(target=process_long_task, args=(chat_id, orch.retrieve, tid, plat)).start()
+                except ValueError:
+                    send_message(chat_id, "❌ <b>Invalid target ID.</b> Must be a number.")
 
         elif cmd == '/analyze':
-            if not args:
-                reply = "❌ <b>Usage:</b> <code>/analyze &lt;target_id&gt;</code>"
+            if not args or not args[0].isdigit():
+                reply = "❌ <b>Usage:</b> <code>/analyze &lt;target_id&gt;</code>\nExample: <code>/analyze 5</code>"
                 send_message(chat_id, reply)
             else:
                 tid = int(args[0])
@@ -161,7 +167,7 @@ def webhook():
 
         elif cmd == '/hack_wa':
             if not args:
-                reply = "❌ <b>Usage:</b> <code>/hack_wa &lt;phone&gt;</code>"
+                reply = "❌ <b>Usage:</b> <code>/hack_wa &lt;phone&gt;</code>\nExample: <code>/hack_wa +2348012345678</code>"
                 send_message(chat_id, reply)
             else:
                 phone = args[0]
@@ -173,9 +179,13 @@ def webhook():
                 reply = "❌ <b>Usage:</b> <code>/verify &lt;target_id&gt; &lt;platform&gt;</code>"
                 send_message(chat_id, reply)
             else:
-                tid, plat = int(args[0]), args[1]
-                send_message(chat_id, f"⏳ <b>Verifying</b> {plat}...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.verify, tid, plat)).start()
+                try:
+                    tid = int(args[0])
+                    plat = args[1]
+                    send_message(chat_id, f"⏳ <b>Verifying</b> {plat}...")
+                    threading.Thread(target=process_long_task, args=(chat_id, orch.verify, tid, plat)).start()
+                except ValueError:
+                    send_message(chat_id, "❌ <b>Invalid target ID.</b> Must be a number.")
 
         elif cmd == '/list':
             send_message(chat_id, "⏳ <b>Fetching</b> target list...")
@@ -190,7 +200,7 @@ def webhook():
 
     return 'OK', 200
 
-# ---------- Health & Test Routes ----------
+# ---------- Health & Test ----------
 @app.route('/health', methods=['GET'])
 def health():
     try:
@@ -204,7 +214,7 @@ def health():
     except Exception as e:
         db_ok = False
         print(f"Health DB check failed: {e}")
-    ai_ok = bool(orch.ai.groq_client or orch.ai.gemini_model)
+    ai_ok = bool(orch.ai.groq_client)
     return jsonify({
         "status": "ok" if db_ok else "degraded",
         "database": db_ok,
