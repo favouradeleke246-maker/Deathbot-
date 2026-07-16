@@ -1,25 +1,28 @@
-import os
 import json
-import groq
-import google.generativeai as genai
+import os
+from google import genai
 from config import GROQ_API_KEY, GOOGLE_API_KEY
 from modules.utils import logger
+
+# Initialize Gemini client (new SDK)
+gemini_client = None
+if GOOGLE_API_KEY:
+    gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
 
 class AIAnalyzer:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
-        self.groq_client = groq.Client(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
-        self.gemini_model = None
-        if GOOGLE_API_KEY:
-            genai.configure(api_key=GOOGLE_API_KEY)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')  # updated model
+        self.groq_client = None
+        if GROQ_API_KEY:
+            import groq
+            self.groq_client = groq.Client(api_key=GROQ_API_KEY)
 
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
-        raw = None
+        # Try Groq first (using the same model name)
         if self.groq_client:
             try:
                 response = self.groq_client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",  # updated model
+                    model="llama-3.1-70b-versatile",
                     messages=[{"role": "user", "content": prompt}],
                     temperature=temperature,
                     max_tokens=max_tokens
@@ -27,9 +30,13 @@ class AIAnalyzer:
                 return response.choices[0].message.content
             except Exception as e:
                 logger.warning(f"Groq failed: {e}. Falling back to Gemini.")
-        if self.gemini_model:
+        # Fallback to Gemini (new SDK)
+        if gemini_client:
             try:
-                response = self.gemini_model.generate_content(prompt)
+                response = gemini_client.models.generate_content(
+                    model="gemini-2.0-flash-exp",  # or "gemini-1.5-pro"
+                    contents=prompt
+                )
                 return response.text
             except Exception as e:
                 logger.error(f"Gemini also failed: {e}")
@@ -37,7 +44,7 @@ class AIAnalyzer:
         raise RuntimeError("No AI API key configured.")
 
     def analyze_and_act(self, target_id, target_data):
-        raw = ""
+        raw = ''
         prompt = f"""
 You are an autonomous attack planner. You MUST output a single JSON object with:
 - "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
