@@ -1,24 +1,21 @@
-import json
 import os
-from google import genai
+import json
+import groq
+import google.generativeai as genai
 from config import GROQ_API_KEY, GOOGLE_API_KEY
 from modules.utils import logger
-
-# Initialize Gemini client (new SDK)
-gemini_client = None
-if GOOGLE_API_KEY:
-    gemini_client = genai.Client(api_key=GOOGLE_API_KEY)
 
 class AIAnalyzer:
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
-        self.groq_client = None
-        if GROQ_API_KEY:
-            import groq
-            self.groq_client = groq.Client(api_key=GROQ_API_KEY)
+        self.groq_client = groq.Client(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+        self.gemini_model = None
+        if GOOGLE_API_KEY:
+            genai.configure(api_key=GOOGLE_API_KEY)
+            self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
 
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
-        # Try Groq first (using the same model name)
+        raw = None
         if self.groq_client:
             try:
                 response = self.groq_client.chat.completions.create(
@@ -27,24 +24,26 @@ class AIAnalyzer:
                     temperature=temperature,
                     max_tokens=max_tokens
                 )
-                return response.choices[0].message.content
+                raw = response.choices[0].message.content
+                print(f"Groq response: {raw[:100]}...")  # visible in logs
+                return raw
             except Exception as e:
+                print(f"Groq detailed error: {type(e).__name__}: {e}")
                 logger.warning(f"Groq failed: {e}. Falling back to Gemini.")
-        # Fallback to Gemini (new SDK)
-        if gemini_client:
+        if self.gemini_model:
             try:
-                response = gemini_client.models.generate_content(
-                    model="gemini-2.0-flash-exp",  # or "gemini-1.5-pro"
-                    contents=prompt
-                )
-                return response.text
+                response = self.gemini_model.generate_content(prompt)
+                raw = response.text
+                print(f"Gemini response: {raw[:100]}...")
+                return raw
             except Exception as e:
+                print(f"Gemini detailed error: {type(e).__name__}: {e}")
                 logger.error(f"Gemini also failed: {e}")
-                raise RuntimeError("Both AI providers failed.")
+                raise RuntimeError(f"Both AI providers failed. Last error: {e}")
         raise RuntimeError("No AI API key configured.")
 
     def analyze_and_act(self, target_id, target_data):
-        raw = ''
+        raw = ""
         prompt = f"""
 You are an autonomous attack planner. You MUST output a single JSON object with:
 - "best_attack": one of ["sms_spoof", "xss_link", "idor_delete", "wa_rce", "social_engineering"]
@@ -58,8 +57,14 @@ Output ONLY JSON. No extra text.
             raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
             result = json.loads(raw)
         except Exception as e:
-            logger.error(f"AI parsing failed: {e}. Raw: {raw[:200] if raw else 'empty'}")
-            return {"error": "AI output invalid", "raw": raw[:200] if raw else ''}
+            print(f"AI parsing failed: {e}. Raw: {raw[:200] if raw else 'empty'}")
+            logger.error(f"AI parsing failed: {e}. Using fallback.")
+            # ----- FALLBACK ATTACK -----
+            return {
+                "best_attack": "xss_link",
+                "reasoning": "Fallback due to AI error. Original error: " + str(e),
+                "parameters": {"username": target_data.get("identifier", ""), "email": "fallback@example.com"}
+            }
 
         attack = result.get("best_attack")
         params = result.get("parameters", {})
