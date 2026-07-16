@@ -71,7 +71,7 @@ def webhook():
                 threading.Thread(target=process_long_task, args=(chat_id, orch.analyze, int(args[0]))).start()
         return 'OK', 200
 
-    # Quick commands (no background)
+    # Quick commands
     try:
         if cmd == '/start':
             reply = (
@@ -98,7 +98,7 @@ def webhook():
     send_message(chat_id, reply)
     return 'OK', 200
 
-# ---------- HEALTH CHECK ENDPOINT ----------
+# ---------- HEALTH CHECK ----------
 @app.route('/health', methods=['GET'])
 def health():
     try:
@@ -121,5 +121,19 @@ def health():
         "service": "SpectraX"
     }), 200 if db_ok else 503
 
+# ---------- TEST AI ROUTE (NEW) ----------
+@app.route('/test_ai', methods=['GET'])
+def test_ai():
+    try:
+        from modules.ai_analysis import AIAnalyzer
+        # Create a dummy orchestrator for testing
+        class Dummy: pass
+        dummy_orch = Dummy()
+        ai = AIAnalyzer(dummy_orch)
+        result = ai._call_llm("Say 'hello' in one word.")
+        return f"AI works! Response: {result}"
+    except Exception as e:
+        return f"AI error: {str(e)}", 500
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080))) 
