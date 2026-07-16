@@ -10,6 +10,6 @@ selenium>=4.15.0
 webdriver-manager>=4.0.1
 cryptography>=41.0.7
 pyOpenSSL>=23.3.0
-sherlock-project>=0.14.0
-maigret>=1.6.0
+sherlock-project==0.16.0
+maigret==0.6.3
 holehe>=0.1.0
