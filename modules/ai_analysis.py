@@ -13,7 +13,7 @@ class AIAnalyzer:
             raise RuntimeError("Groq API key not configured.")
         try:
             response = self.groq_client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile",  # updated model
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 max_tokens=max_tokens
@@ -38,10 +38,9 @@ Output ONLY JSON. No extra text.
             result = json.loads(raw)
         except Exception as e:
             logger.error(f"AI processing failed: {e}")
-            # Return a structured error so the user knows AI is down
             return {
                 "error": f"AI unavailable: {str(e)}",
-                "best_attack": "xss_link",  # fallback
+                "best_attack": "xss_link",
                 "reasoning": "AI failed, using default attack",
                 "parameters": {"username": target_data.get("identifier", ""), "email": "fallback@example.com"}
             }
