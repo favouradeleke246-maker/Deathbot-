@@ -10,6 +10,24 @@ from config import DATABASE_URL, PROXY_LIST, PROCESSING_TIMEOUT
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ---- Retry Decorator ----
+def retry(max_retries=3, delay=2, backoff=2):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            _delay = delay
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries-1:
+                        raise
+                    logger.warning(f"Retry {attempt+1}/{max_retries} for {func.__name__}: {e}")
+                    time.sleep(_delay)
+                    _delay *= backoff
+            return None
+        return wrapper
+    return decorator
+
 # ---- PROXY ----
 def random_proxy():
     if PROXY_LIST:
@@ -27,6 +45,7 @@ def random_user_agent():
 def rate_limit(min_sec=1, max_sec=5):
     time.sleep(random.uniform(min_sec, max_sec))
 
+@retry(max_retries=3, delay=1)
 def safe_request(method, url, **kwargs):
     proxies = None
     proxy = random_proxy()
@@ -45,7 +64,7 @@ def safe_request(method, url, **kwargs):
         return requests.request(method, url, **kwargs)
     except Exception as e:
         logger.error(f"Request failed: {e}")
-        return None
+        raise
 
 # ---- DATABASE (Neon) ----
 def get_db_connection():
@@ -100,3 +119,15 @@ def db_list_targets():
     cur.close()
     conn.close()
     return rows
+
+# New: for diagnostics logs
+def db_log_diagnostic(test_name, status, details):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO diagnostics (test_name, status, details) VALUES (%s, %s, %s)",
+        (test_name, status, json.dumps(details))
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
