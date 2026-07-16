@@ -55,7 +55,7 @@ def process_long_task(chat_id, func, *args, **kwargs):
     def wrapper():
         try:
             result = func(*args, **kwargs)
-            # Convert datetime objects to ISO strings for JSON
+            # Serialize datetime objects
             def default_serializer(obj):
                 if hasattr(obj, 'isoformat'):
                     return obj.isoformat()
@@ -183,7 +183,7 @@ def webhook():
                     tid = int(args[0])
                     plat = args[1]
                     send_message(chat_id, f"⏳ <b>Verifying</b> {plat}...")
-                    threading.Thread(target=process_long_task, args=(chat_id, orch.verify, tid, plat)).start()
+                    threading.Thread(target=process_long_task, args=(chat_id, orch.verify_target, tid, plat)).start()
                 except ValueError:
                     send_message(chat_id, "❌ <b>Invalid target ID.</b> Must be a number.")
 
