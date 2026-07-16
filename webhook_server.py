@@ -10,9 +10,28 @@ app = Flask(__name__)
 orch = Orchestrator()
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
+# ---------- Alias mapping for buttons ----------
+COMMAND_ALIASES = {
+    '/start': ['/start', '❓ help', 'help'],
+    '/track': ['/track', '🔍 track', 'track'],
+    '/retrieve': ['/retrieve'],
+    '/analyze': ['/analyze', '📊 analyze', 'analyze'],
+    '/hack_tiktok': ['/hack_tiktok', '🎯 hack tiktok', 'hack tiktok'],
+    '/hack_wa': ['/hack_wa', '📱 hack whatsapp', 'hack whatsapp'],
+    '/verify': ['/verify', '✅ verify', 'verify'],
+    '/list': ['/list', '📋 list', 'list']
+}
+
+def get_command(text):
+    """Return canonical command from text or None."""
+    text_lower = text.strip().lower()
+    for canonical, aliases in COMMAND_ALIASES.items():
+        if text_lower in [a.lower() for a in aliases]:
+            return canonical
+    return None
+
 # ---------- Helper Functions ----------
 def send_typing(chat_id):
-    """Show 'typing…' animation."""
     try:
         requests.post(f"{TELEGRAM_API}/sendChatAction",
                       json={"chat_id": chat_id, "action": "typing"},
@@ -21,7 +40,6 @@ def send_typing(chat_id):
         pass
 
 def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
-    """Send a formatted message."""
     payload = {
         'chat_id': chat_id,
         'text': text[:4096],
@@ -35,7 +53,6 @@ def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
         print(f"Send failed: {e}")
 
 def process_long_task(chat_id, func, *args, **kwargs):
-    """Run long tasks in background."""
     def wrapper():
         try:
             result = func(*args, **kwargs)
@@ -47,7 +64,6 @@ def process_long_task(chat_id, func, *args, **kwargs):
     thread.start()
 
 def get_main_keyboard():
-    """Persistent keyboard with emoji buttons."""
     return {
         "keyboard": [
             ["🔍 Track", "📊 Analyze"],
@@ -66,7 +82,6 @@ def webhook():
     if not data:
         return 'OK', 200
 
-    # Handle callback queries (if you add inline buttons)
     if 'callback_query' in data:
         return 'OK', 200
 
@@ -79,17 +94,24 @@ def webhook():
     if not text:
         return 'OK', 200
 
-    # Show typing indicator
     send_typing(chat_id)
 
-    # Parse command
+    # Resolve command alias
+    cmd = get_command(text)
+    if cmd is None:
+        # If text starts with '/', it might be a direct command
+        if text.startswith('/'):
+            cmd = text.lower().split()[0]
+        else:
+            send_message(chat_id, "❓ <b>Unknown command.</b> Type <code>/start</code> for help.")
+            return 'OK', 200
+
+    # Extract arguments
     parts = text.split()
-    cmd = parts[0].lower()
-    args = parts[1:]
+    args = parts[1:] if len(parts) > 1 else []
 
     try:
-        # ---------- Command Handlers ----------
-        if cmd == '/start' or cmd == '❓ help' or cmd == 'help':
+        if cmd == '/start':
             reply = (
                 "🤖 <b>SpectraX – Silent Intelligence</b>\n\n"
                 "🔴 <b>Attack</b> – <code>/hack_tiktok</code> or <code>/hack_wa</code>\n"
@@ -101,7 +123,7 @@ def webhook():
             )
             send_message(chat_id, reply, reply_markup=get_main_keyboard())
 
-        elif cmd == '/track' or cmd == '🔍 track':
+        elif cmd == '/track':
             if not args:
                 reply = "❌ <b>Usage:</b> <code>/track &lt;identifier&gt;</code>\nExample: <code>/track john_doe</code>"
                 send_message(chat_id, reply)
@@ -119,7 +141,7 @@ def webhook():
                 send_message(chat_id, f"⏳ <b>Retrieving</b> from {plat}...")
                 threading.Thread(target=process_long_task, args=(chat_id, orch.retrieve, tid, plat)).start()
 
-        elif cmd == '/analyze' or cmd == '📊 analyze':
+        elif cmd == '/analyze':
             if not args:
                 reply = "❌ <b>Usage:</b> <code>/analyze &lt;target_id&gt;</code>"
                 send_message(chat_id, reply)
@@ -128,7 +150,7 @@ def webhook():
                 send_message(chat_id, f"⏳ <b>Analyzing</b> target {tid}...")
                 threading.Thread(target=process_long_task, args=(chat_id, orch.analyze, tid)).start()
 
-        elif cmd == '/hack_tiktok' or cmd == '🎯 hack tiktok':
+        elif cmd == '/hack_tiktok':
             if len(args) < 2:
                 reply = "❌ <b>Usage:</b> <code>/hack_tiktok &lt;username&gt; &lt;attacker_email&gt;</code>"
                 send_message(chat_id, reply)
@@ -137,7 +159,7 @@ def webhook():
                 send_message(chat_id, f"⏳ <b>Launching</b> TikTok attack on {username}...")
                 threading.Thread(target=process_long_task, args=(chat_id, orch.hack_tiktok, username, email)).start()
 
-        elif cmd == '/hack_wa' or cmd == '📱 hack whatsapp':
+        elif cmd == '/hack_wa':
             if not args:
                 reply = "❌ <b>Usage:</b> <code>/hack_wa &lt;phone&gt;</code>"
                 send_message(chat_id, reply)
@@ -146,7 +168,7 @@ def webhook():
                 send_message(chat_id, f"⏳ <b>Launching</b> WhatsApp attack on {phone}...")
                 threading.Thread(target=process_long_task, args=(chat_id, orch.hack_whatsapp, phone)).start()
 
-        elif cmd == '/verify' or cmd == '✅ verify':
+        elif cmd == '/verify':
             if len(args) < 2:
                 reply = "❌ <b>Usage:</b> <code>/verify &lt;target_id&gt; &lt;platform&gt;</code>"
                 send_message(chat_id, reply)
@@ -155,7 +177,7 @@ def webhook():
                 send_message(chat_id, f"⏳ <b>Verifying</b> {plat}...")
                 threading.Thread(target=process_long_task, args=(chat_id, orch.verify, tid, plat)).start()
 
-        elif cmd == '/list' or cmd == '📋 list':
+        elif cmd == '/list':
             send_message(chat_id, "⏳ <b>Fetching</b> target list...")
             threading.Thread(target=process_long_task, args=(chat_id, orch.list_targets)).start()
 
@@ -168,7 +190,7 @@ def webhook():
 
     return 'OK', 200
 
-# ---------- Health Check ----------
+# ---------- Health & Test Routes ----------
 @app.route('/health', methods=['GET'])
 def health():
     try:
@@ -190,7 +212,6 @@ def health():
         "service": "SpectraX"
     }), 200 if db_ok else 503
 
-# ---------- AI Test Route ----------
 @app.route('/test_ai', methods=['GET'])
 def test_ai():
     try:
