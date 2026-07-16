@@ -1,4 +1,5 @@
 import json
+import re
 import groq
 from config import GROQ_API_KEY
 from modules.utils import logger
@@ -11,7 +12,7 @@ class AIAnalyzer:
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
         if not self.groq_client:
             raise RuntimeError("Groq API key not configured.")
-        # Use mixtral – always available
+        # Use mixtral – always available and reliable
         try:
             response = self.groq_client.chat.completions.create(
                 model="mixtral-8x7b-32768",
@@ -36,17 +37,16 @@ Output ONLY JSON. No extra text.
 """
         try:
             raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
-            # Try to parse JSON; if fails, attempt to extract from raw text
+            # Try to parse JSON; if fails, extract JSON from raw
             try:
                 result = json.loads(raw)
             except json.JSONDecodeError:
                 # Look for JSON-like structure
-                import re
                 match = re.search(r'\{.*\}', raw, re.DOTALL)
                 if match:
                     result = json.loads(match.group(0))
                 else:
-                    raise ValueError("No JSON found in response")
+                    raise ValueError("No JSON found in AI response")
         except Exception as e:
             logger.error(f"AI processing failed: {e}")
             return {
