@@ -11,9 +11,10 @@ class AIAnalyzer:
     def _call_llm(self, prompt, max_tokens=400, temperature=0.2):
         if not self.groq_client:
             raise RuntimeError("Groq API key not configured.")
+        # Use mixtral – always available
         try:
             response = self.groq_client.chat.completions.create(
-                model="llama-3.3-70b-versatile",  # updated model
+                model="mixtral-8x7b-32768",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 max_tokens=max_tokens
@@ -35,7 +36,17 @@ Output ONLY JSON. No extra text.
 """
         try:
             raw = self._call_llm(prompt, max_tokens=300, temperature=0.3)
-            result = json.loads(raw)
+            # Try to parse JSON; if fails, attempt to extract from raw text
+            try:
+                result = json.loads(raw)
+            except json.JSONDecodeError:
+                # Look for JSON-like structure
+                import re
+                match = re.search(r'\{.*\}', raw, re.DOTALL)
+                if match:
+                    result = json.loads(match.group(0))
+                else:
+                    raise ValueError("No JSON found in response")
         except Exception as e:
             logger.error(f"AI processing failed: {e}")
             return {
