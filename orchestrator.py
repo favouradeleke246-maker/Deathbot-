@@ -25,7 +25,7 @@ class Orchestrator:
         self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
         self.wa_rce = WhatsAppZeroClickRCE()
         self.wa_fp = WaDeliveryFingerprint()
-        self.verifier = Verify()  # renamed from self.verify
+        self.verifier = Verify()  # renamed to avoid conflict
         self.plugins = load_plugins(self)
 
     @property
