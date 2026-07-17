@@ -2,8 +2,11 @@ import json
 import requests
 import groq
 import google.generativeai as genai
-from config import GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 from openai import OpenAI
+from config import (
+    GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI,
+    DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+)
 from modules.utils import logger
 
 class AIManager:
@@ -26,14 +29,14 @@ class AIManager:
                 'models': ['gemini-2.5-flash', 'gemini-3.1-flash-lite']
             }
 
-        # DeepSeek (new)
+        # DeepSeek
         if DEEPSEEK_API_KEY:
             self.providers['deepseek'] = {
-                'client': OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL or 'https://api.deepseek.com'),
+                'client': OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL),
                 'models': ['deepseek-v4-pro', 'deepseek-v4-flash']
             }
 
-        # Ollama
+        # Ollama (optional)
         if OLLAMA_URL:
             self.providers['ollama'] = {
                 'url': OLLAMA_URL,
