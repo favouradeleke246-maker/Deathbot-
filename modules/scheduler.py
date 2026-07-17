@@ -1,13 +1,14 @@
 from apscheduler.schedulers.background import BackgroundScheduler
-from orchestrator import Orchestrator
 from modules.utils import db_list_targets
 import logging
 
 logger = logging.getLogger(__name__)
 sched = BackgroundScheduler()
-orch = Orchestrator()
 
 def rescan_all():
+    # Lazy import to avoid circular import
+    from orchestrator import Orchestrator
+    orch = Orchestrator()
     targets = db_list_targets()
     for t in targets:
         try:
