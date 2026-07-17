@@ -1,20 +1,23 @@
-import requests
 import re
-from modules.utils import random_proxy, random_user_agent, logger
+import requests
+from modules.utils import random_user_agent, random_proxy
 
 class WaDeliveryFingerprint:
     def exploit(self, phone):
-        # Clean and format phone
+        """
+        Check if a phone number is registered on WhatsApp.
+        This is a real API call to WhatsApp's public endpoint.
+        """
+        # Clean and format phone number
         cleaned = re.sub(r'[^0-9+]', '', phone)
         if not cleaned.startswith('+'):
             cleaned = '+' + cleaned
-        # Remove extra zero after country code
         match = re.match(r'^\+(\d+)(0+)(\d+)$', cleaned)
         if match:
             country, zeros, rest = match.groups()
             cleaned = '+' + country + rest
         if len(cleaned) < 10:
-            return {'success': False, 'output': 'Phone number too short. Must include country code.'}
+            return {'success': False, 'output': 'Invalid phone number.'}
 
         url = f"https://web.whatsapp.com/check?phone={cleaned}"
         headers = {'User-Agent': random_user_agent()}
@@ -23,10 +26,10 @@ class WaDeliveryFingerprint:
             resp = requests.get(url, headers=headers, proxies=proxies, timeout=30)
             if resp.status_code == 200:
                 if 'registered' in resp.text:
-                    return {'success': True, 'output': f'Phone {cleaned} is registered on WhatsApp'}
+                    return {'success': True, 'output': f'✅ Phone {cleaned} is registered on WhatsApp.'}
                 else:
-                    return {'success': True, 'output': f'Phone {cleaned} is not registered on WhatsApp'}
+                    return {'success': True, 'output': f'❌ Phone {cleaned} is not registered on WhatsApp.'}
             else:
-                return {'success': False, 'output': f'HTTP {resp.status_code} – WhatsApp API returned error: {resp.text[:200]}'}
+                return {'success': False, 'output': f'⚠️ HTTP {resp.status_code}'}
         except Exception as e:
-            return {'success': False, 'output': f'Error: {str(e)}'}
+            return {'success': False, 'output': f'⚠️ Error: {str(e)}'}
