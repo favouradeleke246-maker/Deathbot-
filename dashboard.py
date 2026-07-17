@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from orchestrator import Orchestrator
 from modules.utils import db_list_targets, db_get_target
 import requests
@@ -19,6 +19,11 @@ def target_detail(tid):
     if target:
         return jsonify(target)
     return jsonify({'error': 'Target not found'}), 404
+
+@app.route('/api/all_targets')
+def all_targets():
+    targets = db_list_targets()
+    return jsonify(targets)
 
 @app.route('/api/map_data')
 def map_data():
