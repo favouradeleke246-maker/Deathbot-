@@ -21,7 +21,6 @@ COMMAND_ALIASES = {
     '/hack_wa': ['/hack_wa', '📱 hack whatsapp', 'hack whatsapp'],
     '/verify': ['/verify', '✅ verify', 'verify'],
     '/list': ['/list', '📋 list', 'list'],
-    # New commands
     '/breach': ['/breach'],
     '/whois': ['/whois'],
     '/dns': ['/dns'],
@@ -46,7 +45,6 @@ def get_command(text):
     for canonical, aliases in COMMAND_ALIASES.items():
         if text_lower in [a.lower() for a in aliases]:
             return canonical
-    # Fuzzy match
     all_aliases = [item for sublist in COMMAND_ALIASES.values() for item in sublist]
     matches = difflib.get_close_matches(text_lower, all_aliases, n=1, cutoff=0.6)
     if matches:
@@ -83,7 +81,6 @@ def process_long_task(chat_id, func, *args, **kwargs):
             result = func(*args, **kwargs)
             if result is None:
                 result = {'success': False, 'output': 'No result returned.'}
-            # Serialize datetime objects
             def default_serializer(obj):
                 if hasattr(obj, 'isoformat'):
                     return obj.isoformat()
@@ -212,8 +209,12 @@ def webhook():
                 send_message(chat_id, reply)
             else:
                 phone = args[0]
-                send_message(chat_id, f"⏳ <b>Launching</b> WhatsApp attack on {phone}...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.hack_whatsapp, phone)).start()
+                send_message(chat_id, f"⏳ <b>Checking WhatsApp</b> for {phone}...")
+                # Run the task in a separate thread, but ensure result is sent.
+                def hack_wa_task():
+                    result = orch.hack_whatsapp(phone)
+                    send_message(chat_id, json.dumps(result, indent=2))
+                threading.Thread(target=hack_wa_task).start()
 
         elif cmd == '/verify':
             if len(args) < 2:
@@ -433,7 +434,6 @@ def health():
     except Exception as e:
         db_ok = False
         print(f"Health DB check failed: {e}")
-    # Fixed: use ai_manager instead of groq_client
     ai_ok = bool(orch.ai.ai_manager.active_provider) if hasattr(orch.ai, 'ai_manager') else False
     return jsonify({
         "status": "ok" if db_ok else "degraded",
