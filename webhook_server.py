@@ -38,6 +38,22 @@ COMMAND_ALIASES = {
     '/add_admin': ['/add_admin'],
     '/remove_admin': ['/remove_admin'],
     '/list_admins': ['/list_admins'],
+    '/sentiment': ['/sentiment'],
+    '/phish_link': ['/phish_link'],
+    '/plugin_list': ['/plugin_list'],
+    '/plugin_load': ['/plugin_load'],
+    '/monitor': ['/monitor'],
+    '/record_outcome': ['/record_outcome'],
+    '/best_attack': ['/best_attack'],
+    '/defensive': ['/defensive'],
+    '/share': ['/share'],
+    '/unshare': ['/unshare'],
+    '/shodan': ['/shodan'],
+    '/encrypt': ['/encrypt'],
+    '/decrypt': ['/decrypt'],
+    '/geolocate': ['/geolocate'],
+    '/darkweb': ['/darkweb'],
+    '/score': ['/score'],
 }
 
 def get_command(text):
@@ -155,6 +171,7 @@ def webhook():
                 "📄 <b>Report</b> – <code>/report &lt;target_id&gt;</code>\n"
                 "🌐 <b>Instagram</b> – <code>/instagram &lt;username&gt;</code>\n"
                 "🐦 <b>Twitter</b> – <code>/twitter &lt;username&gt;</code>\n\n"
+                "➕ <b>New features</b> – try <code>/sentiment</code>, <code>/geolocate</code>, <code>/score</code> and more!\n"
                 "Use the buttons below or type commands directly."
             )
             send_message(chat_id, reply, reply_markup=get_main_keyboard())
@@ -210,11 +227,7 @@ def webhook():
             else:
                 phone = args[0]
                 send_message(chat_id, f"⏳ <b>Checking WhatsApp</b> for {phone}...")
-                # Run the task in a separate thread, but ensure result is sent.
-                def hack_wa_task():
-                    result = orch.hack_whatsapp(phone)
-                    send_message(chat_id, json.dumps(result, indent=2))
-                threading.Thread(target=hack_wa_task).start()
+                threading.Thread(target=process_long_task, args=(chat_id, orch.hack_whatsapp, phone)).start()
 
         elif cmd == '/verify':
             if len(args) < 2:
@@ -233,7 +246,7 @@ def webhook():
             send_message(chat_id, "⏳ <b>Fetching</b> target list...")
             threading.Thread(target=process_long_task, args=(chat_id, orch.list_targets)).start()
 
-        # ---------- New feature commands ----------
+        # ---------- Existing upgrade commands ----------
         elif cmd == '/breach':
             if not args:
                 reply = "❌ <b>Usage:</b> <code>/breach &lt;email&gt;</code>"
@@ -410,6 +423,131 @@ def webhook():
                 else:
                     reply = "No admins yet."
                 send_message(chat_id, reply)
+
+        # ---------- New upgrade commands ----------
+        elif cmd == '/sentiment':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/sentiment &lt;text&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                text = ' '.join(args)
+                result = orch.sentiment_analysis(text)
+                send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/phish_link':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/phish_link &lt;email&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                link = orch.create_phishing_link(args[0])
+                send_message(chat_id, json.dumps({'link': link}, indent=2))
+
+        elif cmd == '/plugin_list':
+            plugins = orch.fetch_plugins()
+            send_message(chat_id, json.dumps(plugins, indent=2))
+
+        elif cmd == '/plugin_load':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/plugin_load &lt;plugin_name&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                result = orch.load_plugin(args[0])
+                send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/monitor':
+            if len(args) < 2:
+                reply = "❌ <b>Usage:</b> <code>/monitor &lt;target_id&gt; &lt;chat_id&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                orch.start_monitor(int(args[0]), int(args[1]), send_message)
+                send_message(chat_id, "✅ Monitoring started.")
+
+        elif cmd == '/record_outcome':
+            if len(args) < 3:
+                reply = "❌ <b>Usage:</b> <code>/record_outcome &lt;target_id&gt; &lt;attack&gt; &lt;success&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                orch.record_outcome(int(args[0]), args[1], args[2].lower() == 'true')
+                send_message(chat_id, "✅ Outcome recorded.")
+
+        elif cmd == '/best_attack':
+            if not args or not args[0].isdigit():
+                reply = "❌ <b>Usage:</b> <code>/best_attack &lt;target_id&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                best = orch.get_best_attack(int(args[0]))
+                if best:
+                    send_message(chat_id, f"Best attack for target {args[0]}: {best}")
+                else:
+                    send_message(chat_id, "No data yet for that target.")
+
+        elif cmd == '/defensive':
+            result = orch.defensive_scan()
+            send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/share':
+            if len(args) < 2:
+                reply = "❌ <b>Usage:</b> <code>/share &lt;target_id&gt; &lt;user_id&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                orch.share_target(int(args[0]), int(args[1]))
+                send_message(chat_id, "✅ Target shared.")
+
+        elif cmd == '/unshare':
+            if len(args) < 2:
+                reply = "❌ <b>Usage:</b> <code>/unshare &lt;target_id&gt; &lt;user_id&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                orch.unshare_target(int(args[0]), int(args[1]))
+                send_message(chat_id, "✅ Target unshared.")
+
+        elif cmd == '/shodan':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/shodan &lt;ip&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                result = orch.shodan_ip(args[0])
+                send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/encrypt':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/encrypt &lt;text&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                encrypted = orch.encrypt_data(' '.join(args))
+                send_message(chat_id, f"Encrypted: {encrypted}")
+
+        elif cmd == '/decrypt':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/decrypt &lt;encrypted_text&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                decrypted = orch.decrypt_data(args[0])
+                send_message(chat_id, f"Decrypted: {decrypted}")
+
+        elif cmd == '/geolocate':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/geolocate &lt;ip&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                result = orch.geolocate_ip(args[0])
+                send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/darkweb':
+            if not args:
+                reply = "❌ <b>Usage:</b> <code>/darkweb &lt;email&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                result = orch.darkweb_search(args[0])
+                send_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/score':
+            if not args or not args[0].isdigit():
+                reply = "❌ <b>Usage:</b> <code>/score &lt;target_id&gt;</code>"
+                send_message(chat_id, reply)
+            else:
+                result = orch.score_target(int(args[0]))
+                send_message(chat_id, json.dumps(result, indent=2))
 
         else:
             reply = "❓ <b>Unknown command.</b> Type <code>/start</code> for help."
