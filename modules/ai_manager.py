@@ -2,7 +2,8 @@ import json
 import requests
 import groq
 import google.generativeai as genai
-from config import GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI
+from config import GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from openai import OpenAI
 from modules.utils import logger
 
 class AIManager:
@@ -10,14 +11,14 @@ class AIManager:
         self.providers = {}
         self.active_provider = None
 
-        # Groq – updated models
+        # Groq
         if GROQ_API_KEY:
             self.providers['groq'] = {
                 'client': groq.Client(api_key=GROQ_API_KEY),
                 'models': ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
             }
 
-        # Gemini – updated models
+        # Gemini
         if GOOGLE_API_KEY:
             genai.configure(api_key=GOOGLE_API_KEY)
             self.providers['gemini'] = {
@@ -25,7 +26,14 @@ class AIManager:
                 'models': ['gemini-2.5-flash', 'gemini-3.1-flash-lite']
             }
 
-        # Ollama (optional)
+        # DeepSeek (new)
+        if DEEPSEEK_API_KEY:
+            self.providers['deepseek'] = {
+                'client': OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL or 'https://api.deepseek.com'),
+                'models': ['deepseek-v4-pro', 'deepseek-v4-flash']
+            }
+
+        # Ollama
         if OLLAMA_URL:
             self.providers['ollama'] = {
                 'url': OLLAMA_URL,
@@ -57,6 +65,16 @@ class AIManager:
             model_obj = self.providers['gemini']['model']
             response = model_obj.generate_content(prompt)
             return response.text
+
+        elif provider == 'deepseek':
+            client = self.providers['deepseek']['client']
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content
 
         elif provider == 'ollama':
             url = self.providers['ollama']['url'] + '/api/generate'
