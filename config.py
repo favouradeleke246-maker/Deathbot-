@@ -16,3 +16,6 @@ DEFAULT_AI = os.getenv('DEFAULT_AI', 'groq')
 OLLAMA_URL = os.getenv('OLLAMA_URL', '')
 SUPER_ADMIN_ID = int(os.getenv('SUPER_ADMIN_ID', '0'))
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY', '')
+
+# NEW: AbstractAPI key for phone validation
+PHONE_VALIDATION_API_KEY = os.getenv('PHONE_VALIDATION_API_KEY', '')
