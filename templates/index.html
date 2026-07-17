@@ -3,246 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpectraX Dashboard</title>
+    <title>SpectraX – Intelligence Dashboard</title>
+    <!-- Google Fonts (Serene style) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <!-- Leaflet CSS for map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* 🌟 Auto‑changing theme (Red, Blue, Green) */
-        :root {
-            --primary: #e74c3c;
-            --secondary: #3498db;
-            --accent: #2ecc71;
-            --bg: #f8f9fa;
-            --text: #212529;
-        }
-        @keyframes themeShift {
-            0% { --primary: #e74c3c; --secondary: #3498db; --accent: #2ecc71; }
-            33% { --primary: #3498db; --secondary: #2ecc71; --accent: #e74c3c; }
-            66% { --primary: #2ecc71; --secondary: #e74c3c; --accent: #3498db; }
-            100% { --primary: #e74c3c; --secondary: #3498db; --accent: #2ecc71; }
-        }
+        /* ---------- Base ---------- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            animation: themeShift 12s infinite;
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding-top: 20px;
-            transition: all 0.8s ease;
+            font-family: 'Inter', sans-serif;
+            background: #0a0608;
+            color: #fff;
+            overflow-x: hidden;
+            padding: 20px;
+            min-height: 100vh;
         }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border: none;
+        .font-inter { font-family: 'Inter', sans-serif; }
+        .font-instrument { font-family: 'Instrument Serif', serif; }
+        .font-dancing { font-family: 'Dancing Script', cursive; }
+
+        /* ---------- Glow & Glass ---------- */
+        .text-glow {
+            text-shadow: 0 0 40px rgba(255,255,255,0.4), 0 0 80px rgba(255,255,255,0.2);
+        }
+        .liquid-glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+        .liquid-glass:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px rgba(0,0,0,0.6);
+            border-color: rgba(255,255,255,0.15);
+        }
+        .glass-header {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(4px);
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .glass-header h2 {
+            font-family: 'Instrument Serif', serif;
+            font-size: 1.75rem;
+            font-weight: 400;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+        .glass-header i {
+            margin-right: 10px;
+            opacity: 0.7;
+        }
+
+        /* ---------- Cards ---------- */
+        .stat-card {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 20px 24px;
             transition: all 0.3s ease;
         }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        .stat-card:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.15);
         }
-        .card-header {
-            background: var(--primary) !important;
-            color: white !important;
-            border-radius: 15px 15px 0 0 !important;
-            transition: background 0.8s ease;
+        .stat-number {
+            font-family: 'Instrument Serif', serif;
+            font-size: 2.4rem;
+            line-height: 1.2;
+            color: #fff;
         }
-        .btn-primary {
-            background: var(--primary);
-            border: none;
-            transition: background 0.8s ease;
+        .stat-label {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
-        .btn-primary:hover {
-            background: var(--secondary);
+
+        /* ---------- Table ---------- */
+        .table-container {
+            overflow-x: auto;
         }
-        .btn-success {
-            background: var(--accent);
-            border: none;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
         }
-        .btn-success:hover {
-            background: var(--primary);
+        thead th {
+            text-align: left;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
         }
-        .badge-primary { background: var(--primary); }
-        .badge-success { background: var(--accent); }
-        .badge-secondary { background: var(--secondary); }
-        .table th {
-            background: var(--primary);
-            color: white;
+        tbody td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.85);
+        }
+        tbody tr:hover {
+            background: rgba(255,255,255,0.04);
+        }
+        .badge {
+            background: rgba(255,255,255,0.1);
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.8);
+        }
+        .progress {
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 80px;
+            display: inline-block;
+            vertical-align: middle;
         }
         .progress-bar {
-            background: var(--primary);
-            transition: background 0.8s ease;
+            height: 100%;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #f0f0f0, #ffffff);
+            transition: width 0.6s ease;
         }
+        .risk-label {
+            display: inline-block;
+            margin-left: 6px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        /* ---------- Map ---------- */
         .map-container {
-            height: 400px;
-            border-radius: 15px;
+            height: 340px;
+            border-radius: 12px;
             overflow: hidden;
-            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.06);
         }
         .leaflet-container {
             height: 100%;
             width: 100%;
         }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .stat-number { font-size: 1.8rem; }
+            .glass-header h2 { font-size: 1.3rem; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h1 class="display-6"><i class="fas fa-robot"></i> SpectraX Dashboard</h1>
-                        <p class="text-muted">Intelligence at a glance – live targets, geolocation, and stats.</p>
-                    </div>
-                </div>
+
+    <!-- ====== HEADER / BRAND ====== -->
+    <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-3">
+            <span class="font-dancing text-3xl md:text-4xl text-white text-glow">SpectraX</span>
+            <span class="text-white/40 text-sm hidden md:inline">| intelligence</span>
+        </div>
+        <div class="text-white/40 text-xs tracking-wider uppercase">
+            <span id="liveIndicator" class="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></span>
+            live
+        </div>
+    </div>
+
+    <!-- ====== STATS ROW ====== -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+        <div class="stat-card">
+            <div class="stat-number" id="totalTargets">0</div>
+            <div class="stat-label">Total Targets</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number" id="avgRisk">0</div>
+            <div class="stat-label">Average Risk Score</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">✅</div>
+            <div class="stat-label">System Online</div>
+        </div>
+    </div>
+
+    <!-- ====== MAP & QUICK STATS ====== -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Map -->
+        <div class="lg:col-span-2 liquid-glass">
+            <div class="glass-header">
+                <h2><i class="fas fa-map-marked-alt"></i> Target Geolocation</h2>
+            </div>
+            <div class="p-4">
+                <div id="map" class="map-container"></div>
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-map-marked-alt"></i> Target Locations
-                    </div>
-                    <div class="card-body">
-                        <div id="map" class="map-container"></div>
-                    </div>
-                </div>
+        <!-- Quick info / recent -->
+        <div class="liquid-glass">
+            <div class="glass-header">
+                <h2><i class="fas fa-clock"></i> Recent Activity</h2>
             </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-chart-line"></i> Quick Stats
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-group list-group-flush">
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Total Targets
-                                <span class="badge badge-primary rounded-pill" id="totalTargets">0</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                Average Risk Score
-                                <span class="badge badge-success rounded-pill" id="avgRisk">0</span>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                System Status
-                                <span class="badge badge-secondary rounded-pill">✅ Online</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-list"></i> All Targets
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-bordered" id="targetTable">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Identifier</th>
-                                        <th>Platform</th>
-                                        <th>Profiles</th>
-                                        <th>Risk</th>
-                                        <th>Created</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="targetBody">
-                                    <!-- Filled by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+            <div class="p-4 text-white/70 text-sm space-y-2" id="recentActivity">
+                <p class="text-white/40">No recent activity.</p>
             </div>
         </div>
     </div>
 
+    <!-- ====== TARGETS TABLE ====== -->
+    <div class="liquid-glass">
+        <div class="glass-header flex items-center justify-between">
+            <h2><i class="fas fa-list"></i> All Targets</h2>
+            <span class="text-white/40 text-xs" id="targetCount">0</span>
+        </div>
+        <div class="p-4 table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Identifier</th>
+                        <th>Platform</th>
+                        <th>Profiles</th>
+                        <th>Risk</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="targetBody">
+                    <tr><td colspan="7" class="text-center text-white/40 py-8">No targets yet. Track one via Telegram.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ====== FOOTER ====== -->
+    <div class="mt-8 text-center text-white/20 text-xs tracking-widest">
+        SpectraX · Intelligence Platform · <span id="year"></span>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        // ---------- Load targets and map ----------
-        async function loadData() {
-            const resp = await fetch('/api/stats');
-            const stats = await resp.json();
-            document.getElementById('totalTargets').innerText = stats.total_targets;
-            // Calculate average risk
-            let totalRisk = 0;
-            let count = 0;
-            // Load targets table
-            const tableResp = await fetch('/api/stats');
-            const targets = (await tableResp.json()).recent_5 || [];
-            // Actually we need full list; we'll fetch all from /api/target?all but we don't have that.
-            // Instead we'll use the pre-rendered targets from server – we'll populate with Jinja.
-            // For simplicity, we'll embed targets data from server (already passed in render_template).
-            // But we can also use the map data endpoint.
-            // We'll use map data for markers and also populate table.
-            const mapResp = await fetch('/api/map_data');
-            const markers = await mapResp.json();
-            // Update total targets from stats
-            const allTargets = await fetch('/api/stats').then(r => r.json());
-            // We'll need to reload page to get full target list – we'll just use server-side rendering for table.
-            // For dynamic update, we'll reload page periodically.
-        }
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
 
-        // ---------- Initialize map ----------
-        async function initMap() {
-            const resp = await fetch('/api/map_data');
-            const markers = await resp.json();
-            const map = L.map('map').setView([20, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map);
-            markers.forEach(m => {
-                L.marker([m.lat, m.lon])
-                    .addTo(map)
-                    .bindPopup(`<b>${m.identifier}</b><br>${m.city}, ${m.country}`);
+    <script>
+        // ---------- Jinja injects targets data ----------
+        const targetsData = {{ targets|tojson }};
+
+        // ---------- Populate table and stats ----------
+        const tableBody = document.getElementById('targetBody');
+        if (targetsData && targetsData.length > 0) {
+            let html = '';
+            let totalRisk = 0;
+            targetsData.forEach(t => {
+                const osint = t.osint || {};
+                const sherlockCount = osint.sherlock ? Object.keys(osint.sherlock).length : 0;
+                const maigretCount = osint.maigret ? Object.keys(osint.maigret).length : 0;
+                const totalProfiles = sherlockCount + maigretCount;
+                const risk = Math.min(100, totalProfiles * 5);
+                totalRisk += risk;
+                html += `<tr>
+                    <td><strong>${t.id}</strong></td>
+                    <td><i class="fas fa-user-circle"></i> ${t.identifier}</td>
+                    <td><span class="badge">${t.platform || 'auto'}</span></td>
+                    <td>${totalProfiles}</td>
+                    <td>
+                        <div class="progress"><div class="progress-bar" style="width:${risk}%"></div></div>
+                        <span class="risk-label">${risk}%</span>
+                    </td>
+                    <td>${t.created_at ? t.created_at.slice(0,10) : 'N/A'}</td>
+                    <td><button class="text-white/60 hover:text-white transition" onclick="viewTarget(${t.id})"><i class="fas fa-eye"></i></button></td>
+                </tr>`;
             });
-            // Also populate table from server-side data (Jinja)
-            const tableBody = document.getElementById('targetBody');
-            const targets = {{ targets | tojson }};
-            if (targets.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-center">No targets yet.</td></tr>`;
-            } else {
-                targets.forEach(t => {
-                    const osint = t.osint || {};
-                    const totalProfiles = (osint.sherlock ? Object.keys(osint.sherlock).length : 0) +
-                                         (osint.maigret ? Object.keys(osint.maigret).length : 0);
-                    const risk = Math.min(100, totalProfiles * 5);
-                    const row = `<tr>
-                        <td><strong>${t.id}</strong></td>
-                        <td><i class="fas fa-user-circle"></i> ${t.identifier}</td>
-                        <td><span class="badge badge-secondary">${t.platform || 'auto'}</span></td>
-                        <td>${totalProfiles}</td>
-                        <td>
-                            <div class="progress" style="height:20px;">
-                                <div class="progress-bar" role="progressbar" style="width: ${risk}%;" aria-valuenow="${risk}" aria-valuemin="0" aria-valuemax="100">${risk}%</div>
-                            </div>
-                        </td>
-                        <td>${t.created_at ? t.created_at.slice(0,10) : 'N/A'}</td>
-                        <td>
-                            <button class="btn btn-sm btn-primary" onclick="viewTarget(${t.id})"><i class="fas fa-eye"></i></button>
-                        </td>
-                    </tr>`;
-                    tableBody.innerHTML += row;
-                });
-            }
-            // Update stats
-            document.getElementById('totalTargets').innerText = targets.length;
-            const totalRisk = targets.reduce((sum, t) => {
-                const profiles = (t.osint?.sherlock ? Object.keys(t.osint.sherlock).length : 0) +
-                                (t.osint?.maigret ? Object.keys(t.osint.maigret).length : 0);
-                return sum + Math.min(100, profiles * 5);
-            }, 0);
-            const avgRisk = targets.length ? Math.round(totalRisk / targets.length) : 0;
-            document.getElementById('avgRisk').innerText = avgRisk;
+            tableBody.innerHTML = html;
+            // Update avg risk
+            const avg = Math.round(totalRisk / targetsData.length);
+            document.getElementById('avgRisk').innerText = avg;
+            document.getElementById('totalTargets').innerText = targetsData.length;
+            document.getElementById('targetCount').innerText = targetsData.length;
+        } else {
+            tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-white/40 py-8">No targets yet. Track one via Telegram.</td></tr>`;
+            document.getElementById('totalTargets').innerText = 0;
+            document.getElementById('avgRisk').innerText = 0;
         }
 
         function viewTarget(id) {
@@ -252,11 +300,33 @@
                 .catch(error => alert('Error: ' + error));
         }
 
-        // Auto‑refresh every 30 seconds
+        // ---------- Map ----------
+        async function initMap() {
+            try {
+                const resp = await fetch('/api/map_data');
+                const markers = await resp.json();
+                const map = L.map('map').setView([20, 0], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+                markers.forEach(m => {
+                    L.marker([m.lat, m.lon])
+                        .addTo(map)
+                        .bindPopup(`<b>${m.identifier}</b><br>${m.city}, ${m.country}`);
+                });
+            } catch(e) {
+                console.error('Map init error:', e);
+            }
+        }
+
+        // Update year
+        document.getElementById('year').innerText = new Date().getFullYear();
+
+        // Auto-refresh every 30 seconds
         setTimeout(() => location.reload(), 30000);
 
-        // Init when page loads
-        window.onload = initMap;
+        // Init
+        initMap();
     </script>
 </body>
 </html>
