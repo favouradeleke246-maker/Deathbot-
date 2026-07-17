@@ -1,3 +1,6 @@
+# modules/ai_analysis.py
+# Updated to use the AIManager, with correct model fallback
+
 import json
 import re
 from modules.ai_manager import AIManager
@@ -24,6 +27,7 @@ Output ONLY JSON. No extra text.
             try:
                 result = json.loads(raw)
             except json.JSONDecodeError:
+                # Look for JSON-like structure
                 match = re.search(r'\{.*\}', raw, re.DOTALL)
                 if match:
                     result = json.loads(match.group(0))
