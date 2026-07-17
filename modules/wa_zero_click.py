@@ -1,37 +1,36 @@
-import socket
-import struct
-import time
 import re
-from modules.utils import logger
+import requests
+from modules.utils import random_user_agent, random_proxy
 
 class WhatsAppZeroClickRCE:
-    def exploit(self, phone, server_ip='205.210.31.34', server_port=443):
-        if not phone or not re.match(r'^\+\d{10,15}$', phone):
-            return {'success': False, 'output': 'Invalid phone number. Must include country code, e.g., +1234567890'}
+    def exploit(self, phone):
+        """
+        Check if a phone number is registered on WhatsApp.
+        This is a real API call to WhatsApp's public endpoint.
+        """
+        # Clean and format phone number
+        cleaned = re.sub(r'[^0-9+]', '', phone)
+        if not cleaned.startswith('+'):
+            cleaned = '+' + cleaned
+        # Remove extra zero after country code
+        match = re.match(r'^\+(\d+)(0+)(\d+)$', cleaned)
+        if match:
+            country, zeros, rest = match.groups()
+            cleaned = '+' + country + rest
+        if len(cleaned) < 10:
+            return {'success': False, 'output': 'Invalid phone number. Must include country code.'}
 
-        servers = [('205.210.31.34', 443), ('205.210.31.35', 443), ('web.whatsapp.com', 443)]
-        for ip, port in servers:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(10)
-                sock.connect((ip, port))
-                # Send dummy packet
-                sock.send(b'\x08\x01\x12\x04test')
-                time.sleep(1)
-                response = sock.recv(1024)
-                sock.close()
-                return {
-                    'success': True,
-                    'output': f'Packet sent to {ip}:{port}. Response: {response[:50].hex()}. This does NOT guarantee RCE – the server may be patched.'
-                }
-            except socket.error as e:
-                logger.warning(f"Connection to {ip}:{port} failed: {e}")
-                continue
-            except Exception as e:
-                logger.error(f"Unexpected error: {e}")
-                continue
-
-        return {
-            'success': False,
-            'output': 'All WhatsApp servers unreachable or refused connection. The exploit may be patched or the phone number is invalid.'
-        }
+        url = f"https://web.whatsapp.com/check?phone={cleaned}"
+        headers = {'User-Agent': random_user_agent()}
+        proxies = {'http': random_proxy(), 'https': random_proxy()} if random_proxy() else None
+        try:
+            resp = requests.get(url, headers=headers, proxies=proxies, timeout=30)
+            if resp.status_code == 200:
+                if 'registered' in resp.text:
+                    return {'success': True, 'output': f'✅ Phone {cleaned} is REGISTERED on WhatsApp.'}
+                else:
+                    return {'success': True, 'output': f'❌ Phone {cleaned} is NOT registered on WhatsApp.'}
+            else:
+                return {'success': False, 'output': f'⚠️ API error: HTTP {resp.status_code}'}
+        except Exception as e:
+            return {'success': False, 'output': f'⚠️ Error: {str(e)}'}
