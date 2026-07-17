@@ -1,6 +1,3 @@
-# modules/ai_manager.py
-# Full code with updated models for Groq and Gemini
-
 import json
 import requests
 import groq
@@ -13,22 +10,22 @@ class AIManager:
         self.providers = {}
         self.active_provider = None
 
-        # Register Groq – updated models
+        # Groq – updated models
         if GROQ_API_KEY:
             self.providers['groq'] = {
                 'client': groq.Client(api_key=GROQ_API_KEY),
                 'models': ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
             }
 
-        # Register Gemini – updated models
+        # Gemini – updated models
         if GOOGLE_API_KEY:
             genai.configure(api_key=GOOGLE_API_KEY)
             self.providers['gemini'] = {
-                'model': genai.GenerativeModel('gemini-2.0-flash'),
-                'models': ['gemini-2.0-flash', 'gemini-1.5-pro']
+                'model': genai.GenerativeModel('gemini-2.5-flash'),
+                'models': ['gemini-2.5-flash', 'gemini-3.1-flash-lite']
             }
 
-        # Register local Ollama (optional)
+        # Ollama (optional)
         if OLLAMA_URL:
             self.providers['ollama'] = {
                 'url': OLLAMA_URL,
@@ -58,7 +55,6 @@ class AIManager:
 
         elif provider == 'gemini':
             model_obj = self.providers['gemini']['model']
-            # For newer versions, Gemini uses generate_content
             response = model_obj.generate_content(prompt)
             return response.text
 
@@ -82,13 +78,12 @@ class AIManager:
 
         provider_data = self.providers[provider]
         if model is None:
-            model = provider_data['models'][0]  # default first
+            model = provider_data['models'][0]
 
         try:
             return self._call_provider(provider, model, prompt, max_tokens, temperature)
         except Exception as e:
             logger.error(f"{provider} failed: {e}")
-            # Fallback to next provider
             for fallback_provider in self.providers:
                 if fallback_provider != provider:
                     try:
