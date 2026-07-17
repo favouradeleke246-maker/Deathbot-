@@ -1,3 +1,6 @@
+# modules/ai_manager.py
+# Full code with updated models for Groq and Gemini
+
 import json
 import requests
 import groq
@@ -10,19 +13,19 @@ class AIManager:
         self.providers = {}
         self.active_provider = None
 
-        # Register Groq
+        # Register Groq – updated models
         if GROQ_API_KEY:
             self.providers['groq'] = {
                 'client': groq.Client(api_key=GROQ_API_KEY),
-                'models': ['mixtral-8x7b-32768', 'llama-3.3-70b-versatile']
+                'models': ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
             }
 
-        # Register Gemini
+        # Register Gemini – updated models
         if GOOGLE_API_KEY:
             genai.configure(api_key=GOOGLE_API_KEY)
             self.providers['gemini'] = {
-                'model': genai.GenerativeModel('gemini-1.5-flash'),
-                'models': ['gemini-1.5-flash', 'gemini-2.0-flash-exp']
+                'model': genai.GenerativeModel('gemini-2.0-flash'),
+                'models': ['gemini-2.0-flash', 'gemini-1.5-pro']
             }
 
         # Register local Ollama (optional)
@@ -55,6 +58,7 @@ class AIManager:
 
         elif provider == 'gemini':
             model_obj = self.providers['gemini']['model']
+            # For newer versions, Gemini uses generate_content
             response = model_obj.generate_content(prompt)
             return response.text
 
@@ -78,7 +82,7 @@ class AIManager:
 
         provider_data = self.providers[provider]
         if model is None:
-            model = provider_data['models'][0]
+            model = provider_data['models'][0]  # default first
 
         try:
             return self._call_provider(provider, model, prompt, max_tokens, temperature)
