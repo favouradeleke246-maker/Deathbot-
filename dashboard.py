@@ -1,6 +1,6 @@
 import os
 import json
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 from orchestrator import Orchestrator
 from modules.utils import db_list_targets, db_get_target
 import requests
@@ -25,11 +25,9 @@ def map_data():
     targets = db_list_targets()
     markers = []
     for t in targets:
-        # Try to extract IP from OSINT data
         osint = t.get('osint', {})
-        ip = osint.get('ip')  # we may not store IP directly, but we can try to find it
+        ip = osint.get('ip')
         if ip:
-            # Get location from ipapi.co
             try:
                 resp = requests.get(f"https://ipapi.co/{ip}/json/", timeout=5)
                 if resp.status_code == 200:
@@ -58,5 +56,5 @@ def stats():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
