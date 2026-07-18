@@ -3,351 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SpectraX – Intelligence Dashboard</title>
-    <!-- Google Fonts (Serene style) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <!-- Leaflet CSS for map -->
+    <title>☠️ SpectraX</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💀</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Instrument+Serif&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        /* ---------- Base ---------- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: #0a0608;
-            color: #fff;
-            overflow-x: hidden;
+            background: #0a0000;
+            color: #ffcccc;
             padding: 20px;
             min-height: 100vh;
+            background-image: radial-gradient(circle at 20% 30%, #1a0000 0%, #0a0000 90%);
         }
-        .font-inter { font-family: 'Inter', sans-serif; }
-        .font-instrument { font-family: 'Instrument Serif', serif; }
         .font-dancing { font-family: 'Dancing Script', cursive; }
-
-        /* ---------- Auto‑changing theme (Red, Blue, Green) ---------- */
-        :root {
-            --primary: #e74c3c;
-            --secondary: #3498db;
-            --accent: #2ecc71;
-            --bg: #0a0608;
-            --text: #fff;
+        .font-instrument { font-family: 'Instrument Serif', serif; }
+        .text-glow-red {
+            text-shadow: 0 0 30px #ff000088, 0 0 60px #ff000044;
         }
-        @keyframes themeShift {
-            0% { --primary: #e74c3c; --secondary: #3498db; --accent: #2ecc71; }
-            33% { --primary: #3498db; --secondary: #2ecc71; --accent: #e74c3c; }
-            66% { --primary: #2ecc71; --secondary: #e74c3c; --accent: #3498db; }
-            100% { --primary: #e74c3c; --secondary: #3498db; --accent: #2ecc71; }
-        }
-        body {
-            animation: themeShift 12s infinite;
-            background: var(--bg);
-            color: var(--text);
-            transition: all 0.8s ease;
-        }
-
-        /* ---------- Glass & Glow ---------- */
-        .text-glow {
-            text-shadow: 0 0 40px rgba(255,255,255,0.4), 0 0 80px rgba(255,255,255,0.2);
-        }
-        .liquid-glass {
-            background: rgba(255, 255, 255, 0.03);
+        .glass-card {
+            background: rgba(20, 0, 0, 0.6);
             backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid #990000;
             border-radius: 20px;
             overflow: hidden;
-            transition: all 0.4s ease;
-        }
-        .liquid-glass:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 48px rgba(0,0,0,0.6);
-            border-color: rgba(255,255,255,0.15);
+            box-shadow: 0 8px 32px rgba(255,0,0,0.2);
         }
         .glass-header {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(4px);
+            background: rgba(180, 0, 0, 0.3);
             padding: 16px 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 2px solid #ff0000;
         }
         .glass-header h2 {
             font-family: 'Instrument Serif', serif;
-            font-size: 1.75rem;
-            font-weight: 400;
-            letter-spacing: -0.02em;
-            color: #fff;
-        }
-        .glass-header i {
-            margin-right: 10px;
-            opacity: 0.7;
-        }
-
-        /* ---------- Cards ---------- */
-        .stat-card {
-            background: rgba(255,255,255,0.04);
-            backdrop-filter: blur(4px);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 20px 24px;
-            transition: all 0.3s ease;
-        }
-        .stat-card:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.15);
+            color: #ff6666;
+            letter-spacing: 1px;
         }
         .stat-number {
             font-family: 'Instrument Serif', serif;
             font-size: 2.4rem;
-            line-height: 1.2;
-            color: var(--primary);
-            transition: color 0.8s ease;
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff000088;
         }
         .stat-label {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.6);
-            letter-spacing: 0.02em;
+            color: #ff9999;
             text-transform: uppercase;
-        }
-
-        /* ---------- Table ---------- */
-        .table-container {
-            overflow-x: auto;
+            font-size: 0.75rem;
+            letter-spacing: 2px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
         }
         thead th {
-            text-align: left;
-            padding: 14px 16px;
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.8);
-            font-weight: 500;
-            letter-spacing: 0.02em;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(200,0,0,0.2);
+            color: #ff6666;
+            padding: 12px 16px;
+            border-bottom: 2px solid #990000;
         }
         tbody td {
-            padding: 14px 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.85);
+            padding: 12px 16px;
+            border-bottom: 1px solid #330000;
+            color: #ffcccc;
         }
         tbody tr:hover {
-            background: rgba(255,255,255,0.04);
-        }
-        .badge {
-            background: rgba(255,255,255,0.1);
-            padding: 4px 10px;
-            border-radius: 40px;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.8);
+            background: rgba(255,0,0,0.1);
         }
         .progress {
             height: 6px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 8px;
-            overflow: hidden;
+            background: #330000;
+            border-radius: 4px;
             width: 80px;
             display: inline-block;
-            vertical-align: middle;
         }
         .progress-bar {
             height: 100%;
-            border-radius: 8px;
-            background: var(--primary);
-            transition: background 0.8s ease, width 0.6s ease;
+            background: linear-gradient(90deg, #660000, #ff0000);
+            border-radius: 4px;
         }
-        .risk-label {
-            display: inline-block;
-            margin-left: 6px;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.6);
+        .badge {
+            background: #660000;
+            color: #ffcccc;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
         }
-
-        /* ---------- Map ---------- */
         .map-container {
             height: 340px;
             border-radius: 12px;
             overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.06);
+            border: 1px solid #660000;
         }
-        .leaflet-container {
-            height: 100%;
-            width: 100%;
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
-
-        /* ---------- Responsive ---------- */
-        @media (max-width: 768px) {
-            body { padding: 12px; }
-            .stat-number { font-size: 1.8rem; }
-            .glass-header h2 { font-size: 1.3rem; }
+        .pulse {
+            animation: pulse 2s infinite;
         }
     </style>
 </head>
 <body>
-
-    <!-- ====== HEADER / BRAND ====== -->
-    <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center gap-3">
-            <span class="font-dancing text-3xl md:text-4xl text-white text-glow">SpectraX</span>
-            <span class="text-white/40 text-sm hidden md:inline">| intelligence</span>
-        </div>
-        <div class="text-white/40 text-xs tracking-wider uppercase">
-            <span class="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse mr-2"></span>
-            live
-        </div>
-    </div>
-
-    <!-- ====== STATS ROW ====== -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-        <div class="stat-card">
-            <div class="stat-number" id="totalTargets">0</div>
-            <div class="stat-label">Total Targets</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number" id="avgRisk">0</div>
-            <div class="stat-label">Average Risk Score</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number">✅</div>
-            <div class="stat-label">System Online</div>
-        </div>
-    </div>
-
-    <!-- ====== MAP & QUICK STATS ====== -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Map -->
-        <div class="lg:col-span-2 liquid-glass">
-            <div class="glass-header">
-                <h2><i class="fas fa-map-marked-alt"></i> Target Geolocation</h2>
+    <div class="container" style="max-width:1400px;margin:0 auto;">
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center gap-3">
+                <span class="font-dancing text-4xl text-red-500 text-glow-red">☠️ SpectraX</span>
+                <span class="text-red-700 text-sm hidden md:inline">| death control</span>
             </div>
+            <div class="text-red-500 text-xs tracking-widest pulse">
+                <span class="inline-block w-2 h-2 bg-red-600 rounded-full mr-2"></span> LETHAL
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div class="glass-card p-4">
+                <div class="stat-number" id="totalTargets">0</div>
+                <div class="stat-label">Prey Count</div>
+            </div>
+            <div class="glass-card p-4">
+                <div class="stat-number" id="avgRisk">0</div>
+                <div class="stat-label">Risk Level</div>
+            </div>
+            <div class="glass-card p-4">
+                <div class="stat-number">💀</div>
+                <div class="stat-label">System Armed</div>
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="glass-card mb-8">
+            <div class="glass-header"><h2>🗺️ Prey Locations</h2></div>
             <div class="p-4">
                 <div id="map" class="map-container"></div>
             </div>
         </div>
 
-        <!-- Quick info / recent -->
-        <div class="liquid-glass">
-            <div class="glass-header">
-                <h2><i class="fas fa-clock"></i> Recent Activity</h2>
+        <!-- Target Table -->
+        <div class="glass-card">
+            <div class="glass-header flex items-center justify-between">
+                <h2>📋 Execution List</h2>
+                <span class="text-red-500 text-xs" id="targetCount">0</span>
             </div>
-            <div class="p-4 text-white/70 text-sm space-y-2" id="recentActivity">
-                <p class="text-white/40">No recent activity.</p>
+            <div class="p-4 overflow-x-auto">
+                <table>
+                    <thead><tr><th>ID</th><th>Prey</th><th>Platform</th><th>Profiles</th><th>Risk</th><th>Created</th><th>Act</th></tr></thead>
+                    <tbody id="targetBody"><tr><td colspan="7" class="text-center text-red-700 py-8">No prey yet. Start the hunt.</td></tr></tbody>
+                </table>
             </div>
         </div>
+
+        <div class="mt-8 text-center text-red-700 text-xs tracking-widest">☠️ SpectraX – Death Protocol Active ☠️</div>
     </div>
 
-    <!-- ====== TARGETS TABLE ====== -->
-    <div class="liquid-glass">
-        <div class="glass-header flex items-center justify-between">
-            <h2><i class="fas fa-list"></i> All Targets</h2>
-            <span class="text-white/40 text-xs" id="targetCount">0</span>
-        </div>
-        <div class="p-4 table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Identifier</th>
-                        <th>Platform</th>
-                        <th>Profiles</th>
-                        <th>Risk</th>
-                        <th>Created</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="targetBody">
-                    <tr><td colspan="7" class="text-center text-white/40 py-8">No targets yet. Track one via Telegram.</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- ====== FOOTER ====== -->
-    <div class="mt-8 text-center text-white/20 text-xs tracking-widest">
-        SpectraX · Intelligence Platform · <span id="year"></span>
-    </div>
-
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-
     <script>
-        // ---------- Jinja injects targets data ----------
         const targetsData = {{ targets|tojson }};
-
-        // ---------- Populate table and stats ----------
-        const tableBody = document.getElementById('targetBody');
+        const tbody = document.getElementById('targetBody');
         if (targetsData && targetsData.length > 0) {
-            let html = '';
-            let totalRisk = 0;
+            let html = '', totalRisk = 0;
             targetsData.forEach(t => {
                 const osint = t.osint || {};
-                const sherlockCount = osint.sherlock ? Object.keys(osint.sherlock).length : 0;
-                const maigretCount = osint.maigret ? Object.keys(osint.maigret).length : 0;
-                const totalProfiles = sherlockCount + maigretCount;
-                const risk = Math.min(100, totalProfiles * 5);
+                const profiles = (osint.sherlock ? Object.keys(osint.sherlock).length : 0) + (osint.maigret ? Object.keys(osint.maigret).length : 0);
+                const risk = Math.min(100, profiles * 5);
                 totalRisk += risk;
                 html += `<tr>
                     <td><strong>${t.id}</strong></td>
-                    <td><i class="fas fa-user-circle"></i> ${t.identifier}</td>
+                    <td><i class="fas fa-skull"></i> ${t.identifier}</td>
                     <td><span class="badge">${t.platform || 'auto'}</span></td>
-                    <td>${totalProfiles}</td>
-                    <td>
-                        <div class="progress"><div class="progress-bar" style="width:${risk}%"></div></div>
-                        <span class="risk-label">${risk}%</span>
-                    </td>
+                    <td>${profiles}</td>
+                    <td><div class="progress"><div class="progress-bar" style="width:${risk}%"></div></div> ${risk}%</td>
                     <td>${t.created_at ? t.created_at.slice(0,10) : 'N/A'}</td>
-                    <td><button class="text-white/60 hover:text-white transition" onclick="viewTarget(${t.id})"><i class="fas fa-eye"></i></button></td>
+                    <td><button class="text-red-500 hover:text-red-300" onclick="viewTarget(${t.id})">🔪</button></td>
                 </tr>`;
             });
-            tableBody.innerHTML = html;
-            const avg = Math.round(totalRisk / targetsData.length);
-            document.getElementById('avgRisk').innerText = avg;
+            tbody.innerHTML = html;
             document.getElementById('totalTargets').innerText = targetsData.length;
+            document.getElementById('avgRisk').innerText = Math.round(totalRisk / targetsData.length);
             document.getElementById('targetCount').innerText = targetsData.length;
-        } else {
-            tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-white/40 py-8">No targets yet. Track one via Telegram.</td></tr>`;
-            document.getElementById('totalTargets').innerText = 0;
-            document.getElementById('avgRisk').innerText = 0;
         }
 
-        function viewTarget(id) {
-            fetch(`/api/target/${id}`)
-                .then(response => response.json())
-                .then(data => alert(JSON.stringify(data, null, 2)))
-                .catch(error => alert('Error: ' + error));
-        }
-
-        // ---------- Map ----------
         async function initMap() {
-            try {
-                const resp = await fetch('/api/map_data');
-                const markers = await resp.json();
-                const map = L.map('map').setView([20, 0], 2);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map);
-                markers.forEach(m => {
-                    L.marker([m.lat, m.lon])
-                        .addTo(map)
-                        .bindPopup(`<b>${m.identifier}</b><br>${m.city}, ${m.country}`);
-                });
-            } catch(e) {
-                console.error('Map init error:', e);
-            }
+            const resp = await fetch('/api/map_data');
+            const markers = await resp.json();
+            const map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+            markers.forEach(m => {
+                L.marker([m.lat, m.lon], { icon: L.divIcon({ html: '💀', iconSize: [24, 24] }) })
+                    .addTo(map)
+                    .bindPopup(`<b>${m.identifier}</b><br>${m.city}, ${m.country}`);
+            });
         }
-
-        // Update year
-        document.getElementById('year').innerText = new Date().getFullYear();
-
-        // Auto-refresh every 30 seconds
-        setTimeout(() => location.reload(), 30000);
-
-        // Init
+        function viewTarget(id) {
+            fetch(`/api/target/${id}`).then(r=>r.json()).then(d=>alert(JSON.stringify(d,null,2))).catch(e=>alert('Error'));
+        }
         initMap();
+        setInterval(() => location.reload(), 30000);
     </script>
 </body>
 </html>
