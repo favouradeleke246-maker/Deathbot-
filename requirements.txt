@@ -25,3 +25,6 @@ textblob>=0.17.0
 shodan>=1.28.0
 redis>=5.0.0
 openai>=1.0.0
+pywhatkit>=5.4
+stem>=1.8.0
+vaderSentiment>=3.3.2
