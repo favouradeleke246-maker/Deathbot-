@@ -41,7 +41,9 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key
     && apt-get update && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ChromeDriver via webdriver-manager (handled by Python code, but we keep it for safety)
+# Install ChromeDriver from Debian repositories (compatible and stable)
+RUN apt-get update && apt-get install -y chromium-chromedriver \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -50,14 +52,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Force install webdriver-manager (if not in requirements)
-RUN pip install --no-cache-dir webdriver-manager
-
 # Copy the entire application
 COPY . .
 
-# Expose the port (Railway uses $PORT, but we set 8080 as default)
+# Expose the port
 EXPOSE 8080
 
-# Start Gunicorn with timeout
+# Start Gunicorn
 CMD ["gunicorn", "webhook_server:app", "--timeout", "300", "--bind", "0.0.0.0:8080"]
