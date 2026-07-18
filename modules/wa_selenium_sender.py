@@ -6,13 +6,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 from modules.utils import logger
 
 class WaSeleniumSender:
     def __init__(self, profile_dir='/app/whatsapp-profile'):
         self.profile_dir = profile_dir
         self.driver = None
+        self.driver_path = '/usr/bin/chromedriver'  # system-installed driver
 
     def _get_driver(self):
         if self.driver is None:
@@ -22,13 +22,10 @@ class WaSeleniumSender:
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--disable-gpu')
             options.add_argument('--remote-debugging-port=9222')
-            # Use the system Chrome binary
             options.binary_location = '/usr/bin/google-chrome'
-            # Use the profile
             options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-            # Use webdriver_manager to get the correct driver
-            service = Service(ChromeDriverManager().install())
+            service = Service(self.driver_path)
             self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.get('https://web.whatsapp.com')
             time.sleep(5)
