@@ -14,7 +14,8 @@ from modules.utils import db_insert_target, db_get_target, db_update_target_prof
 from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL, VIRUSTOTAL_API_KEY, ENABLE_SCHEDULER
 from plugins import load_plugins
 
-# New attack modules
+# Advanced OSINT (already included in osint.py – no separate import)
+# Attack modules
 from modules.wa_real_attack import WaRealAttack
 from modules.wa_delete import delete_whatsapp_account
 from modules.wa_hijack import hijack_whatsapp
@@ -98,13 +99,13 @@ class Orchestrator:
     # ---------- Core Methods ----------
     def track(self, identifier):
         if '@' in identifier:
-            res = self.osint.scan_email(identifier)
+            osint_results = {'email': self.osint.scan_email(identifier)}
         else:
-            res = self.osint.scan_username(identifier)
-        target_id = db_insert_target(identifier, 'auto', res)
-        target_data = {'identifier': identifier, 'osint': res}
+            osint_results = self.osint.scan_username(identifier)  # returns sherlock, maigret, tookie
+        target_id = db_insert_target(identifier, 'auto', osint_results)
+        target_data = {'identifier': identifier, 'osint': osint_results}
         ai_result = self.ai.analyze_and_act(target_id, target_data)
-        return {'target_id': target_id, 'osint': res, 'ai_action': ai_result}
+        return {'target_id': target_id, 'osint': osint_results, 'ai_action': ai_result}
 
     def retrieve(self, target_id, platform):
         if self.retriever is None:
