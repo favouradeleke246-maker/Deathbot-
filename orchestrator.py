@@ -65,7 +65,7 @@ class Orchestrator:
 
         # New attack modules
         self.wa_real = WaRealAttack()
-        self.wa_sender = WaSeleniumSender(profile_dir='/app/whatsapp-profile')  # adjust path as needed
+        self.wa_sender = WaSeleniumSender(profile_dir='/app/whatsapp-profile')
         self.tiktok_real = TikTokRealAttack(TIKTOK_SESSION) if TIKTOK_SESSION else None
 
         # Existing advanced features
@@ -256,7 +256,7 @@ class Orchestrator:
 
     # ---------- WhatsApp Real Attacks ----------
     def send_wa_message(self, phone, message):
-        return self.wa_real.send_message(phone, message)
+        return self.wa_sender.send_message(phone, message)
 
     def hack_wa_call(self, phone):
         return self.wa_real.call_number(phone)
