@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     unzip \
     curl \
+    git \
     # Chrome runtime libraries
     libnss3 \
     libx11-6 \
@@ -51,6 +52,13 @@ WORKDIR /app
 # Copy requirements and install Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Sherlock and Maigret globally (they are in requirements, but we also force global install)
+RUN pip install --no-cache-dir sherlock-project==0.16.0 maigret==0.6.3 holehe>=0.1.0
+
+# Clone Tookie-OSINT
+RUN git clone https://github.com/Alfredredbird/tookie-osint.git /opt/tookie-osint
+RUN pip install -r /opt/tookie-osint/requirements.txt || true
 
 # Copy the entire application
 COPY . .
