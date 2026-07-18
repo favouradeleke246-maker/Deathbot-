@@ -35,11 +35,20 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome using modern GPG method (apt-key is deprecated)
+# Install Google Chrome – Method 1: HTTPS repository (preferred)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    || echo "Google Chrome repository failed. Using fallback method."
+
+# Install Chrome – Method 2: Direct .deb download (fallback if repository fails)
+RUN if ! command -v google-chrome > /dev/null; then \
+        wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+        && apt-get update && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+        && rm google-chrome-stable_current_amd64.deb \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # Install ChromeDriver from Debian repositories (compatible and stable)
 RUN apt-get update && apt-get install -y chromium-chromedriver \
