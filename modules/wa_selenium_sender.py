@@ -1,10 +1,12 @@
 import os
 import time
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 from modules.utils import logger
 
 class WaSeleniumSender:
@@ -18,9 +20,16 @@ class WaSeleniumSender:
             options.add_argument('--headless')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument(f'--user-data-dir={self.profile_dir}')
             options.add_argument('--disable-gpu')
-            self.driver = webdriver.Chrome(options=options)
+            options.add_argument('--remote-debugging-port=9222')
+            # Use the system Chrome binary
+            options.binary_location = '/usr/bin/google-chrome'
+            # Use the profile
+            options.add_argument(f'--user-data-dir={self.profile_dir}')
+
+            # Use webdriver_manager to get the correct driver
+            service = Service(ChromeDriverManager().install())
+            self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.get('https://web.whatsapp.com')
             time.sleep(5)
         return self.driver
