@@ -53,7 +53,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Sherlock and Maigret globally (they are in requirements, but we also force global install)
+# Install Sherlock, Maigret, Holehe globally
 RUN pip install --no-cache-dir sherlock-project==0.16.0 maigret==0.6.3 holehe>=0.1.0
 
 # Clone Tookie-OSINT
