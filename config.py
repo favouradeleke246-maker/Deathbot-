@@ -22,7 +22,7 @@ PHONE_VALIDATION_API_KEY = os.getenv('PHONE_VALIDATION_API_KEY', '')
 BITLY_API_KEY = os.getenv('BITLY_API_KEY', '')
 SHODAN_API_KEY = os.getenv('SHODAN_API_KEY', '')
 REDIS_URL = os.getenv('REDIS_URL', '')
-ENABLE_SCHEDULER = os.getenv('ENABLE_SCHEDULER', 'false').lower() == 'true'
+ENABLE_SCHEDULER = True   # <-- ENABLED BY DEFAULT
 ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', '')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
 DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
