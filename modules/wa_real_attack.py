@@ -1,38 +1,34 @@
 """
-Real WhatsApp attack module – sends message, triggers call.
-Uses pywhatkit for quick message sending.
+Real WhatsApp attack module – sends messages via Selenium (headless).
+No GUI dependencies – runs on Railway without DISPLAY.
 """
-import pywhatkit as kit
 import re
 from modules.utils import logger
 
 class WaRealAttack:
     @staticmethod
-    def send_message(phone, message, wait_time=15, tab_close=True):
-        clean_phone = re.sub(r'[^0-9]', '', phone)
-        if len(clean_phone) < 10:
-            return {'success': False, 'output': 'Invalid phone number.'}
-        try:
-            kit.sendwhatmsg_instantly(clean_phone, message, wait_time=wait_time, tab_close=tab_close)
-            return {'success': True, 'output': f'Message sent to {phone}.'}
-        except Exception as e:
-            logger.error(f"WhatsApp send failed: {e}")
-            return {'success': False, 'output': f'Error: {str(e)}'}
+    def send_message(phone, message):
+        """
+        Send a WhatsApp message using Selenium (via WaSeleniumSender).
+        This method is called from orchestrator, which has the sender instance.
+        """
+        # This is a placeholder – the actual sending is done by orchestrator.wa_sender
+        # We keep this for compatibility, but the real method is in orchestrator.
+        return {'success': False, 'output': 'Use /wa_send via orchestrator (Selenium).'}
 
     @staticmethod
     def send_image(phone, image_path, caption=''):
-        try:
-            kit.sendwhats_image(phone, image_path, caption, wait_time=15)
-            return {'success': True, 'output': f'Image sent to {phone}.'}
-        except Exception as e:
-            return {'success': False, 'output': f'Image send error: {e}'}
+        return {'success': False, 'output': 'Image sending not implemented in headless mode.'}
 
     @staticmethod
     def call_number(phone):
-        import webbrowser
+        # This can be done via webbrowser – but webbrowser also needs DISPLAY.
+        # We'll use a simple HTTP request to simulate.
+        import requests
         try:
+            # Open WhatsApp call link (no display needed)
             url = f'https://wa.me/{phone}?call=1'
-            webbrowser.open(url)
-            return {'success': True, 'output': f'Opened WhatsApp call to {phone} in browser.'}
+            # Just return the link – user can click it.
+            return {'success': True, 'output': f'WhatsApp call link: {url}'}
         except Exception as e:
-            return {'success': False, 'output': f'Call error: {e}'}
+            return {'success': False, 'output': str(e)}
