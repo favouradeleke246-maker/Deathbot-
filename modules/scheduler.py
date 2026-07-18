@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 sched = BackgroundScheduler()
 
 def rescan_all():
-    # Lazy import to avoid circular import
     from orchestrator import Orchestrator
     orch = Orchestrator()
     targets = db_list_targets()
