@@ -1,13 +1,12 @@
 import subprocess
 import json
 import os
-import shlex
 from modules.utils import logger
 
 class OSINTEngine:
     def scan_username(self, username):
-        results = {'sherlock': {}, 'maigret': {}}
-        # Sherlock
+        results = {'sherlock': {}, 'maigret': {}, 'tookie': {}}
+        # ---------- Sherlock ----------
         try:
             cmd = ['sherlock', username, '--csv', '--output', '/tmp/sherlock.csv']
             logger.info(f"Running: {' '.join(cmd)}")
@@ -19,12 +18,13 @@ class OSINTEngine:
                         if len(parts) >= 3:
                             results['sherlock'][parts[1]] = parts[2]
         except subprocess.TimeoutExpired:
-            logger.error("Sherlock timed out after 120s.")
+            logger.error("Sherlock timed out.")
         except FileNotFoundError:
-            logger.error("Sherlock command not found. Is it installed?")
+            logger.error("Sherlock not installed.")
         except Exception as e:
             logger.error(f"Sherlock failed: {e}")
-        # Maigret
+
+        # ---------- Maigret ----------
         try:
             cmd = ['maigret', username, '--json', '--output', '/tmp/maigret.json']
             logger.info(f"Running: {' '.join(cmd)}")
@@ -35,11 +35,32 @@ class OSINTEngine:
                     if info.get('status') == 'found':
                         results['maigret'][site] = info.get('url', '')
         except subprocess.TimeoutExpired:
-            logger.error("Maigret timed out after 180s.")
+            logger.error("Maigret timed out.")
         except FileNotFoundError:
-            logger.error("Maigret command not found. Is it installed?")
+            logger.error("Maigret not installed.")
         except Exception as e:
             logger.error(f"Maigret failed: {e}")
+
+        # ---------- Tookie-OSINT ----------
+        try:
+            tookie_script = '/opt/tookie-osint/tookie-osint.py'
+            if os.path.exists(tookie_script):
+                cmd = ['python3', tookie_script, '-u', username, '--json']
+                logger.info(f"Running Tookie: {' '.join(cmd)}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode == 0 and result.stdout:
+                    data = json.loads(result.stdout)
+                    if data.get('found'):
+                        results['tookie'] = data.get('urls', {})
+                else:
+                    logger.error(f"Tookie stderr: {result.stderr[:200]}")
+            else:
+                logger.warning("Tookie script not found at /opt/tookie-osint")
+        except subprocess.TimeoutExpired:
+            logger.error("Tookie timed out.")
+        except Exception as e:
+            logger.error(f"Tookie failed: {e}")
+
         return results
 
     def scan_email(self, email):
