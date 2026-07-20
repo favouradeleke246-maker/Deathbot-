@@ -27,13 +27,13 @@ class WaSeleniumSender:
         options.binary_location = '/usr/bin/google-chrome'
         options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-        # FIRST: Try system installed chromedriver
+        # FIRST: Try system installed chromedriver (now at /usr/local/bin/chromedriver)
         try:
-            service = Service('/usr/bin/chromedriver')
+            service = Service('/usr/local/bin/chromedriver')
             self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.get('https://web.whatsapp.com')
             time.sleep(5)
-            logger.info("Using system chromedriver")
+            logger.info("Using system chromedriver at /usr/local/bin/chromedriver")
             return self.driver
         except Exception as e:
             logger.warning(f"System chromedriver failed: {e}")
@@ -49,7 +49,7 @@ class WaSeleniumSender:
             return self.driver
         except Exception as e2:
             logger.error(f"WebDriverManager also failed: {e2}")
-            raise RuntimeError("No ChromeDriver available. Please check Dockerfile.")
+            raise RuntimeError("No ChromeDriver available. Please check installation.")
 
     def send_message(self, phone, message):
         driver = self._get_driver()
