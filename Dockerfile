@@ -4,12 +4,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Install only essential system libraries for Chrome
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     unzip \
     curl \
+    git \
     libnss3 \
     libx11-6 \
     libgbm1 \
@@ -29,12 +29,16 @@ RUN apt-get update && apt-get install -y \
     libatk1.0-0 \
     libdrm2 \
     libxkbcommon0 \
+    tesseract-ocr \
+    tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome from official repository (HTTPS)
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y chromium-chromedriver \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
