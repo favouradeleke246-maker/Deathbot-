@@ -13,42 +13,44 @@ class WaSeleniumSender:
     def __init__(self, profile_dir='/app/whatsapp-profile'):
         self.profile_dir = profile_dir
         self.driver = None
-        # We'll set driver_path dynamically
+        self.driver_path = None
 
     def _get_driver(self):
-        if self.driver is None:
-            options = Options()
-            options.add_argument('--headless')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--remote-debugging-port=9222')
-            options.binary_location = '/usr/bin/google-chrome'
-            options.add_argument(f'--user-data-dir={self.profile_dir}')
+        if self.driver is not None:
+            return self.driver
 
-            # Try webdriver-manager first (downloads matching driver)
-            try:
-                driver_path = ChromeDriverManager().install()
-                service = Service(driver_path)
-                self.driver = webdriver.Chrome(service=service, options=options)
-                self.driver.get('https://web.whatsapp.com')
-                time.sleep(5)
-                return self.driver
-            except Exception as e:
-                logger.warning(f"WebDriverManager failed: {e}. Falling back to system chromedriver.")
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--remote-debugging-port=9222')
+        options.binary_location = '/usr/bin/google-chrome'
+        options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-            # Fallback to system chromedriver
-            try:
-                service = Service('/usr/bin/chromedriver')
-                self.driver = webdriver.Chrome(service=service, options=options)
-                self.driver.get('https://web.whatsapp.com')
-                time.sleep(5)
-                return self.driver
-            except Exception as e2:
-                logger.error(f"System chromedriver also failed: {e2}")
-                raise RuntimeError("No working ChromeDriver found. Please ensure Chrome is installed and driver accessible.")
+        # Strategy 1: Use system chromedriver (from apt-get)
+        try:
+            service = Service('/usr/bin/chromedriver')
+            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver.get('https://web.whatsapp.com')
+            time.sleep(5)
+            logger.info("Using system chromedriver")
+            return self.driver
+        except Exception as e:
+            logger.warning(f"System chromedriver failed: {e}. Trying webdriver-manager.")
 
-        return self.driver
+        # Strategy 2: Use webdriver-manager (auto-download)
+        try:
+            driver_path = ChromeDriverManager().install()
+            service = Service(driver_path)
+            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver.get('https://web.whatsapp.com')
+            time.sleep(5)
+            logger.info("Using webdriver-manager downloaded driver")
+            return self.driver
+        except Exception as e2:
+            logger.error(f"WebDriverManager also failed: {e2}")
+            raise RuntimeError("No ChromeDriver available. Please check your Dockerfile.")
 
     def send_message(self, phone, message):
         driver = self._get_driver()
