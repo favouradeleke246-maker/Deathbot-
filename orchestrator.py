@@ -14,7 +14,6 @@ from modules.utils import db_insert_target, db_get_target, db_update_target_prof
 from config import TIKTOK_SESSION, SMS_GATEWAY_API_KEY, SMS_GATEWAY_URL, VIRUSTOTAL_API_KEY, ENABLE_SCHEDULER
 from plugins import load_plugins
 
-# Advanced OSINT (already included in osint.py – no separate import)
 # Attack modules
 from modules.wa_real_attack import WaRealAttack
 from modules.wa_delete import delete_whatsapp_account
@@ -26,7 +25,7 @@ from modules.tt_delete import delete_tiktok_account
 from modules.tt_reset_hijack import reset_tiktok_password
 from modules.tt_report import report_tiktok_account
 
-# Existing advanced modules
+# Advanced modules
 from modules.advanced_osint import AdvancedOSINT
 from modules.advanced_attacks import AdvancedAttacks
 from modules.reporting import ReportGenerator
