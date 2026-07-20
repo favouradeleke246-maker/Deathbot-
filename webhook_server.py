@@ -73,7 +73,7 @@ COMMAND_ALIASES = {
     '/tt_chain': ['/tt_chain'],
     '/ig_chain': ['/ig_chain'],
     '/x_chain': ['/x_chain'],
-    '/ocr': ['/ocr'],   # new
+    '/ocr': ['/ocr'],
 }
 
 def get_command(text):
@@ -131,7 +131,9 @@ def process_long_task(chat_id, func, *args, **kwargs):
                 raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
             send_formatted_message(chat_id, json.dumps(result, indent=2, default=default_serializer))
         except Exception as e:
-            send_formatted_message(chat_id, f"⚠️ <b>Error:</b> {str(e)}")
+            # Send plain text to avoid HTML parsing errors
+            error_msg = f"⚠️ Error: {str(e)}"
+            send_message(chat_id, error_msg, parse_mode=None)
     thread = threading.Thread(target=wrapper)
     thread.daemon = True
     thread.start()
@@ -237,7 +239,6 @@ def webhook():
         cb = data['callback_query']
         chat_id = cb['message']['chat']['id']
         cb_data = cb['data']
-        # Chain callbacks
         if cb_data.startswith('wa_execute_'):
             phone = cb_data.split('_')[2]
             from modules.whatsapp_chain import WhatsAppAttackChain
@@ -247,7 +248,7 @@ def webhook():
                 result = chain.execute()
                 send_formatted_message(chat_id, json.dumps(result, indent=2))
             except Exception as e:
-                send_formatted_message(chat_id, f"⚠️ Execution error: {str(e)}")
+                send_message(chat_id, f"⚠️ Execution error: {str(e)}", parse_mode=None)
         elif cb_data == 'wa_cancel':
             send_formatted_message(chat_id, "❌ Attack cancelled.")
         elif cb_data.startswith('tt_execute_'):
@@ -261,7 +262,7 @@ def webhook():
                 result = chain.execute()
                 send_formatted_message(chat_id, json.dumps(result, indent=2))
             except Exception as e:
-                send_formatted_message(chat_id, f"⚠️ Execution error: {str(e)}")
+                send_message(chat_id, f"⚠️ Execution error: {str(e)}", parse_mode=None)
         elif cb_data == 'tt_cancel':
             send_formatted_message(chat_id, "❌ Attack cancelled.")
         elif cb_data.startswith('ig_execute_'):
@@ -273,7 +274,7 @@ def webhook():
                 result = chain.execute()
                 send_formatted_message(chat_id, json.dumps(result, indent=2))
             except Exception as e:
-                send_formatted_message(chat_id, f"⚠️ Execution error: {str(e)}")
+                send_message(chat_id, f"⚠️ Execution error: {str(e)}", parse_mode=None)
         elif cb_data == 'ig_cancel':
             send_formatted_message(chat_id, "❌ Attack cancelled.")
         elif cb_data.startswith('x_execute_'):
@@ -285,11 +286,11 @@ def webhook():
                 result = chain.execute()
                 send_formatted_message(chat_id, json.dumps(result, indent=2))
             except Exception as e:
-                send_formatted_message(chat_id, f"⚠️ Execution error: {str(e)}")
+                send_message(chat_id, f"⚠️ Execution error: {str(e)}", parse_mode=None)
         elif cb_data == 'x_cancel':
             send_formatted_message(chat_id, "❌ Attack cancelled.")
         else:
-            send_formatted_message(chat_id, "❓ Unknown callback.")
+            send_message(chat_id, "❓ Unknown callback.", parse_mode=None)
         return 'OK', 200
 
     if 'message' not in data:
@@ -308,7 +309,7 @@ def webhook():
         if text.startswith('/'):
             cmd = text.split()[0].lower()
         else:
-            send_formatted_message(chat_id, "❓ Unknown command. Type <code>/start</code> or <code>/menu</code> for help.")
+            send_message(chat_id, "❓ Unknown command. Type /start or /menu for help.", parse_mode=None)
             return 'OK', 200
 
     parts = text.split()
@@ -339,7 +340,7 @@ def webhook():
                     send_formatted_message(chat_id, f"⏳ Retrieving from {plat}...")
                     threading.Thread(target=process_long_task, args=(chat_id, orch.retrieve, tid, plat)).start()
                 except ValueError:
-                    send_formatted_message(chat_id, "❌ Invalid target ID. Must be a number.")
+                    send_message(chat_id, "❌ Invalid target ID. Must be a number.", parse_mode=None)
 
         elif cmd == '/analyze':
             if not args or not args[0].isdigit():
@@ -352,7 +353,7 @@ def webhook():
 
         elif cmd == '/hack_tiktok':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
                 reply = "❌ Usage: <code>/hack_tiktok &lt;username&gt; &lt;attacker_email&gt;</code>"
                 send_formatted_message(chat_id, reply)
@@ -363,7 +364,7 @@ def webhook():
 
         elif cmd == '/hack_wa':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
                 reply = "❌ Usage: <code>/hack_wa &lt;phone&gt;</code>\nExample: <code>/hack_wa +2348012345678</code>"
                 send_formatted_message(chat_id, reply)
@@ -383,7 +384,7 @@ def webhook():
                     send_formatted_message(chat_id, f"⏳ Verifying...")
                     threading.Thread(target=process_long_task, args=(chat_id, orch.verify_target, tid, plat)).start()
                 except ValueError:
-                    send_formatted_message(chat_id, "❌ Invalid target ID.")
+                    send_message(chat_id, "❌ Invalid target ID.", parse_mode=None)
 
         elif cmd == '/list':
             send_formatted_message(chat_id, "⏳ Fetching prey list...")
@@ -392,9 +393,9 @@ def webhook():
         # ---------- Attack Chains ----------
         elif cmd == '/wa_chain':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /wa_chain <phone>")
+                send_message(chat_id, "❌ Usage: /wa_chain <phone>", parse_mode=None)
             else:
                 phone = args[0]
                 from modules.whatsapp_chain import WhatsAppAttackChain
@@ -402,7 +403,7 @@ def webhook():
                 try:
                     prep_result = chain.prep(phone)
                     if 'error' in prep_result:
-                        send_formatted_message(chat_id, f"❌ Error: {prep_result['error']}")
+                        send_message(chat_id, f"❌ Error: {prep_result['error']}", parse_mode=None)
                     else:
                         summary = chain.confirm_summary()
                         keyboard = {
@@ -413,13 +414,13 @@ def webhook():
                         }
                         send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
-                    send_formatted_message(chat_id, f"⚠️ Error during preparation: {str(e)}")
+                    send_message(chat_id, f"⚠️ Error during preparation: {str(e)}", parse_mode=None)
 
         elif cmd == '/tt_chain':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 1:
-                send_formatted_message(chat_id, "❌ Usage: /tt_chain <username> [video_id]")
+                send_message(chat_id, "❌ Usage: /tt_chain <username> [video_id]", parse_mode=None)
             else:
                 username = args[0]
                 video_id = args[1] if len(args) > 1 else None
@@ -436,13 +437,13 @@ def webhook():
                     }
                     send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
-                    send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
+                    send_message(chat_id, f"⚠️ Error: {str(e)}", parse_mode=None)
 
         elif cmd == '/ig_chain':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /ig_chain <username>")
+                send_message(chat_id, "❌ Usage: /ig_chain <username>", parse_mode=None)
             else:
                 username = args[0]
                 from modules.instagram_chain import InstagramAttackChain
@@ -458,13 +459,13 @@ def webhook():
                     }
                     send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
-                    send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
+                    send_message(chat_id, f"⚠️ Error: {str(e)}", parse_mode=None)
 
         elif cmd == '/x_chain':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /x_chain <username>")
+                send_message(chat_id, "❌ Usage: /x_chain <username>", parse_mode=None)
             else:
                 username = args[0]
                 from modules.x_chain import XAttackChain
@@ -480,14 +481,14 @@ def webhook():
                     }
                     send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
-                    send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
+                    send_message(chat_id, f"⚠️ Error: {str(e)}", parse_mode=None)
 
         # ---------- WhatsApp Real Commands ----------
         elif cmd == '/wa_send':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /wa_send <phone> <message>")
+                send_message(chat_id, "❌ Usage: /wa_send <phone> <message>", parse_mode=None)
             else:
                 phone = args[0]
                 msg = ' '.join(args[1:])
@@ -496,9 +497,9 @@ def webhook():
 
         elif cmd == '/wa_call':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /wa_call <phone>")
+                send_message(chat_id, "❌ Usage: /wa_call <phone>", parse_mode=None)
             else:
                 phone = args[0]
                 result = orch.hack_wa_call(phone)
@@ -506,9 +507,9 @@ def webhook():
 
         elif cmd == '/wa_delete':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /wa_delete <session_cookie>")
+                send_message(chat_id, "❌ Usage: /wa_delete <session_cookie>", parse_mode=None)
             else:
                 cookie = args[0]
                 result = orch.wa_delete(cookie)
@@ -516,9 +517,9 @@ def webhook():
 
         elif cmd == '/wa_hijack':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /wa_hijack <phone> <verification_code>")
+                send_message(chat_id, "❌ Usage: /wa_hijack <phone> <verification_code>", parse_mode=None)
             else:
                 phone, code = args[0], args[1]
                 result = orch.wa_hijack(phone, code)
@@ -526,9 +527,9 @@ def webhook():
 
         elif cmd == '/wa_deactivate':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /wa_deactivate <phone>")
+                send_message(chat_id, "❌ Usage: /wa_deactivate <phone>", parse_mode=None)
             else:
                 phone = args[0]
                 result = orch.wa_deactivate(phone)
@@ -537,9 +538,9 @@ def webhook():
         # ---------- TikTok Real Commands ----------
         elif cmd == '/tt_comment':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /tt_comment <video_id> <comment>")
+                send_message(chat_id, "❌ Usage: /tt_comment <video_id> <comment>", parse_mode=None)
             else:
                 vid = args[0]
                 comment = ' '.join(args[1:])
@@ -548,9 +549,9 @@ def webhook():
 
         elif cmd == '/tt_reset':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /tt_reset <username> <email>")
+                send_message(chat_id, "❌ Usage: /tt_reset <username> <email>", parse_mode=None)
             else:
                 username, email = args[0], args[1]
                 result = orch.hack_tiktok_reset(username, email)
@@ -558,9 +559,9 @@ def webhook():
 
         elif cmd == '/tt_follow':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif not args:
-                send_formatted_message(chat_id, "❌ Usage: /tt_follow <username>")
+                send_message(chat_id, "❌ Usage: /tt_follow <username>", parse_mode=None)
             else:
                 username = args[0]
                 result = orch.hack_tiktok_follow(username)
@@ -568,9 +569,9 @@ def webhook():
 
         elif cmd == '/tt_delete':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /tt_delete <session_cookie> <user_id>")
+                send_message(chat_id, "❌ Usage: /tt_delete <session_cookie> <user_id>", parse_mode=None)
             else:
                 cookie, uid = args[0], args[1]
                 result = orch.tt_delete(cookie, uid)
@@ -578,9 +579,9 @@ def webhook():
 
         elif cmd == '/tt_report':
             if not is_admin(chat_id):
-                send_formatted_message(chat_id, "⛔ Admin only.")
+                send_message(chat_id, "⛔ Admin only.", parse_mode=None)
             elif len(args) < 2:
-                send_formatted_message(chat_id, "❌ Usage: /tt_report <session_cookie> <username>")
+                send_message(chat_id, "❌ Usage: /tt_report <session_cookie> <username>", parse_mode=None)
             else:
                 cookie, username = args[0], args[1]
                 result = orch.tt_report(cookie, username)
@@ -588,11 +589,10 @@ def webhook():
 
         # ---------- Fallback ----------
         else:
-            reply = "❓ Unknown command. Type <code>/start</code> or <code>/menu</code> for help."
-            send_formatted_message(chat_id, reply)
+            send_message(chat_id, "❓ Unknown command. Type /start or /menu for help.", parse_mode=None)
 
     except Exception as e:
-        send_formatted_message(chat_id, f"⚠️ Unexpected error: {str(e)}")
+        send_message(chat_id, f"⚠️ Unexpected error: {str(e)}", parse_mode=None)
 
     return 'OK', 200
 
