@@ -1,11 +1,11 @@
 import threading
 import time
 from modules.utils import db_get_target
-from orchestrator import Orchestrator
-
-orch = Orchestrator()
 
 def monitor_target(target_id, chat_id, send_func):
+    # Lazy import to avoid circular import
+    from orchestrator import Orchestrator
+    orch = Orchestrator()
     last_profile = None
     while True:
         target = db_get_target(target_id)
