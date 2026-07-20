@@ -97,7 +97,7 @@ def send_typing(chat_id):
     except Exception:
         pass
 
-def send_message(chat_id, text, parse_mode='MarkdownV2', reply_markup=None):
+def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
     payload = {
         'chat_id': chat_id,
         'text': text[:4096],
@@ -106,13 +106,17 @@ def send_message(chat_id, text, parse_mode='MarkdownV2', reply_markup=None):
     if reply_markup:
         payload['reply_markup'] = json.dumps(reply_markup)
     try:
-        requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
+        resp = requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
+        if resp.status_code != 200:
+            print(f"Send failed: {resp.status_code} – {resp.text}")
+        else:
+            print("Message sent OK")
     except Exception as e:
-        print(f"Send failed: {e}")
+        print(f"Send exception: {e}")
 
-def send_formatted_message(chat_id, text, parse_mode='MarkdownV2', reply_markup=None):
-    header = "☠️ *SPECTRAX*\n━━━━━━━━━━━━━━━━━━━━\n"
-    footer = "\n━━━━━━━━━━━━━━━━━━━━\n⚡ *LETHAL PROTOCOL ACTIVE* ⚡"
+def send_formatted_message(chat_id, text, parse_mode='HTML', reply_markup=None):
+    header = "☠️ <b>SPECTRAX</b>\n━━━━━━━━━━━━━━━━━━━━\n"
+    footer = "\n━━━━━━━━━━━━━━━━━━━━\n⚡ <b>LETHAL PROTOCOL ACTIVE</b> ⚡"
     full_text = header + text + footer
     send_message(chat_id, full_text, parse_mode, reply_markup)
 
@@ -128,7 +132,7 @@ def process_long_task(chat_id, func, *args, **kwargs):
                 raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
             send_formatted_message(chat_id, json.dumps(result, indent=2, default=default_serializer))
         except Exception as e:
-            send_formatted_message(chat_id, f"⚠️ *Error:* {str(e)}")
+            send_formatted_message(chat_id, f"⚠️ <b>Error:</b> {str(e)}")
     thread = threading.Thread(target=wrapper)
     thread.daemon = True
     thread.start()
@@ -151,76 +155,77 @@ def is_admin(chat_id):
     return chat_id == SUPER_ADMIN_ID or orch.admin.is_admin(chat_id)
 
 def get_help_text():
+    # Using HTML tags: <b>bold</b>, <code>code</code>, <pre>pre</pre>
     return """
-*☠️ SPECTRAX – COMMAND MENU*
+<b>☠️ SPECTRAX – COMMAND MENU</b>
 
-*🔵 Reconnaissance*
-`/track <identifier>` – OSINT on username/email/phone
-`/retrieve <tid> <platform>` – Retrieve profile (TikTok)
-`/breach <email>` – Check data breaches
-`/whois <domain>` – WHOIS lookup
-`/dns <domain>` – DNS resolution
-`/reverseimage <url>` – Reverse image search
-`/instagram <username>` – Instagram profile
-`/x <username>` – X (Twitter) profile
-`/geolocate <ip>` – IP geolocation
-`/darkweb <email>` – Breach check
+<b>🔵 Reconnaissance</b>
+<code>/track &lt;identifier&gt;</code> – OSINT on username/email/phone
+<code>/retrieve &lt;tid&gt; &lt;platform&gt;</code> – Retrieve profile (TikTok)
+<code>/breach &lt;email&gt;</code> – Check data breaches
+<code>/whois &lt;domain&gt;</code> – WHOIS lookup
+<code>/dns &lt;domain&gt;</code> – DNS resolution
+<code>/reverseimage &lt;url&gt;</code> – Reverse image search
+<code>/instagram &lt;username&gt;</code> – Instagram profile
+<code>/x &lt;username&gt;</code> – X (Twitter) profile
+<code>/geolocate &lt;ip&gt;</code> – IP geolocation
+<code>/darkweb &lt;email&gt;</code> – Breach check
 
-*🔴 Assassinations*
-`/hack_tiktok <user> <email>` – XSS + IDOR (admin)
-`/hack_wa <phone>` – WhatsApp registration check (admin)
-`/wa_chain <phone>` – WhatsApp attack chain (12 steps + 4 actions) (admin)
-`/tt_chain <username> [video_id]` – TikTok attack chain (admin)
-`/ig_chain <username>` – Instagram attack chain (admin)
-`/x_chain <username>` – X (Twitter) attack chain (admin)
-`/wa_send <phone> <msg>` – Send real WhatsApp message (admin)
-`/wa_call <phone>` – Initiate WhatsApp call (admin)
-`/wa_delete <session>` – Delete WhatsApp account (admin)
-`/wa_hijack <phone> <code>` – Hijack WhatsApp (admin)
-`/wa_deactivate <phone>` – Send deactivation request (admin)
-`/tt_comment <video_id> <comment>` – Post XSS comment (admin)
-`/tt_reset <username> <email>` – Trigger password reset (admin)
-`/tt_follow <username>` – Follow target (admin)
-`/tt_delete <session> <user_id>` – Delete TikTok account (admin)
-`/tt_report <session> <username>` – Report TikTok account (admin)
-`/phish <email> [template]` – Generate phishing email (admin)
-`/phish_link <email>` – Shorten phishing link (admin)
-`/stuff <user> <passwords>` – Credential stuffing (admin)
-`/session <cookie>` – Test session cookie (admin)
-`/nmap <host> [ports]` – Port scan (admin)
+<b>🔴 Assassinations</b>
+<code>/hack_tiktok &lt;user&gt; &lt;email&gt;</code> – XSS + IDOR (admin)
+<code>/hack_wa &lt;phone&gt;</code> – WhatsApp registration check (admin)
+<code>/wa_chain &lt;phone&gt;</code> – WhatsApp attack chain (12 steps + 4 actions) (admin)
+<code>/tt_chain &lt;username&gt; [video_id]</code> – TikTok attack chain (admin)
+<code>/ig_chain &lt;username&gt;</code> – Instagram attack chain (admin)
+<code>/x_chain &lt;username&gt;</code> – X (Twitter) attack chain (admin)
+<code>/wa_send &lt;phone&gt; &lt;msg&gt;</code> – Send real WhatsApp message (admin)
+<code>/wa_call &lt;phone&gt;</code> – Initiate WhatsApp call (admin)
+<code>/wa_delete &lt;session&gt;</code> – Delete WhatsApp account (admin)
+<code>/wa_hijack &lt;phone&gt; &lt;code&gt;</code> – Hijack WhatsApp (admin)
+<code>/wa_deactivate &lt;phone&gt;</code> – Send deactivation request (admin)
+<code>/tt_comment &lt;video_id&gt; &lt;comment&gt;</code> – Post XSS comment (admin)
+<code>/tt_reset &lt;username&gt; &lt;email&gt;</code> – Trigger password reset (admin)
+<code>/tt_follow &lt;username&gt;</code> – Follow target (admin)
+<code>/tt_delete &lt;session&gt; &lt;user_id&gt;</code> – Delete TikTok account (admin)
+<code>/tt_report &lt;session&gt; &lt;username&gt;</code> – Report TikTok account (admin)
+<code>/phish &lt;email&gt; [template]</code> – Generate phishing email (admin)
+<code>/phish_link &lt;email&gt;</code> – Shorten phishing link (admin)
+<code>/stuff &lt;user&gt; &lt;passwords&gt;</code> – Credential stuffing (admin)
+<code>/session &lt;cookie&gt;</code> – Test session cookie (admin)
+<code>/nmap &lt;host&gt; [ports]</code> – Port scan (admin)
 
-*🟢 Analysis*
-`/analyze <tid>` – Risk report
-`/report <tid>` – Generate PDF report
-`/sentiment <text>` – Sentiment analysis
-`/score <tid>` – Target priority score
-`/best_attack <tid>` – Best attack from past outcomes
+<b>🟢 Analysis</b>
+<code>/analyze &lt;tid&gt;</code> – Risk report
+<code>/report &lt;tid&gt;</code> – Generate PDF report
+<code>/sentiment &lt;text&gt;</code> – Sentiment analysis
+<code>/score &lt;tid&gt;</code> – Target priority score
+<code>/best_attack &lt;tid&gt;</code> – Best attack from past outcomes
 
-*🟣 Utilities*
-`/list` – Show all targets
-`/verify <tid> <platform>` – Verify platform presence
-`/encrypt <text>` – Encrypt text
-`/decrypt <encrypted>` – Decrypt text
-`/wipe_target <tid>` – Delete target and all traces (admin)
-`/ransom` – Simulate ransom note (admin)
-`/panic` – Clear all logs (admin)
-`/anonymize` – Refresh Tor identity (admin)
+<b>🟣 Utilities</b>
+<code>/list</code> – Show all targets
+<code>/verify &lt;tid&gt; &lt;platform&gt;</code> – Verify platform presence
+<code>/encrypt &lt;text&gt;</code> – Encrypt text
+<code>/decrypt &lt;encrypted&gt;</code> – Decrypt text
+<code>/wipe_target &lt;tid&gt;</code> – Delete target and all traces (admin)
+<code>/ransom</code> – Simulate ransom note (admin)
+<code>/panic</code> – Clear all logs (admin)
+<code>/anonymize</code> – Refresh Tor identity (admin)
 
-*⚙️ Admin & System*
-`/diagnose` – System diagnostics
-`/model <provider>` – Switch AI (groq/gemini/deepseek/ollama)
-`/add_admin <user_id>` – Add admin (super admin)
-`/remove_admin <user_id>` – Remove admin (super admin)
-`/list_admins` – List admins (super admin)
-`/defensive` – Scan for exposed keys (admin)
-`/monitor <tid> <chat_id>` – Start monitoring (admin)
-`/record_outcome <tid> <attack> <success>` – Record outcome
-`/share <tid> <user_id>` – Share target
-`/unshare <tid> <user_id>` – Unshare target
-`/plugin_list` – List available plugins
-`/plugin_load <name>` – Load plugin
+<b>⚙️ Admin & System</b>
+<code>/diagnose</code> – System diagnostics
+<code>/model &lt;provider&gt;</code> – Switch AI (groq/gemini/deepseek/ollama)
+<code>/add_admin &lt;user_id&gt;</code> – Add admin (super admin)
+<code>/remove_admin &lt;user_id&gt;</code> – Remove admin (super admin)
+<code>/list_admins</code> – List admins (super admin)
+<code>/defensive</code> – Scan for exposed keys (admin)
+<code>/monitor &lt;tid&gt; &lt;chat_id&gt;</code> – Start monitoring (admin)
+<code>/record_outcome &lt;tid&gt; &lt;attack&gt; &lt;success&gt;</code> – Record outcome
+<code>/share &lt;tid&gt; &lt;user_id&gt;</code> – Share target
+<code>/unshare &lt;tid&gt; &lt;user_id&gt;</code> – Unshare target
+<code>/plugin_list</code> – List available plugins
+<code>/plugin_load &lt;name&gt;</code> – Load plugin
 
-📌 *Use /start to see this menu anytime.*
+📌 <i>Use /start to see this menu anytime.</i>
 """
 
 # ---------- Routes ----------
@@ -410,7 +415,7 @@ def webhook():
                                 [{"text": "❌ Cancel", "callback_data": "wa_cancel"}]
                             ]
                         }
-                        send_message(chat_id, summary, parse_mode='MarkdownV2', reply_markup=json.dumps(keyboard))
+                        send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error during preparation: {str(e)}")
 
@@ -433,7 +438,7 @@ def webhook():
                             [{"text": "❌ Cancel", "callback_data": "tt_cancel"}]
                         ]
                     }
-                    send_message(chat_id, summary, parse_mode='MarkdownV2', reply_markup=json.dumps(keyboard))
+                    send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
 
@@ -455,7 +460,7 @@ def webhook():
                             [{"text": "❌ Cancel", "callback_data": "ig_cancel"}]
                         ]
                     }
-                    send_message(chat_id, summary, parse_mode='MarkdownV2', reply_markup=json.dumps(keyboard))
+                    send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
 
@@ -477,11 +482,11 @@ def webhook():
                             [{"text": "❌ Cancel", "callback_data": "x_cancel"}]
                         ]
                     }
-                    send_message(chat_id, summary, parse_mode='MarkdownV2', reply_markup=json.dumps(keyboard))
+                    send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
 
-        # ---------- Fallback for any other command ----------
+        # ---------- Fallback ----------
         else:
             reply = "❓ Unknown command. Type <code>/start</code> or <code>/menu</code> for help."
             send_formatted_message(chat_id, reply)
