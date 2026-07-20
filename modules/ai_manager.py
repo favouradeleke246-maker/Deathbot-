@@ -1,12 +1,10 @@
 import json
 import requests
 import groq
-import google.generativeai as genai
+from google import genai
+from google.genai import types
+from config import GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI, DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 from openai import OpenAI
-from config import (
-    GROQ_API_KEY, GOOGLE_API_KEY, OLLAMA_URL, DEFAULT_AI,
-    DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
-)
 from modules.utils import logger
 
 class AIManager:
@@ -21,12 +19,11 @@ class AIManager:
                 'models': ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant']
             }
 
-        # Gemini
+        # Gemini (new google.genai)
         if GOOGLE_API_KEY:
-            genai.configure(api_key=GOOGLE_API_KEY)
             self.providers['gemini'] = {
-                'model': genai.GenerativeModel('gemini-2.5-flash'),
-                'models': ['gemini-2.5-flash', 'gemini-3.1-flash-lite']
+                'client': genai.Client(api_key=GOOGLE_API_KEY),
+                'models': ['gemini-3.5-flash', 'gemini-3.1-flash-lite']
             }
 
         # DeepSeek
@@ -65,8 +62,16 @@ class AIManager:
             return response.choices[0].message.content
 
         elif provider == 'gemini':
-            model_obj = self.providers['gemini']['model']
-            response = model_obj.generate_content(prompt)
+            client = self.providers['gemini']['client']
+            # New SDK: use generate_content with model name
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens
+                )
+            )
             return response.text
 
         elif provider == 'deepseek':
@@ -105,6 +110,7 @@ class AIManager:
             return self._call_provider(provider, model, prompt, max_tokens, temperature)
         except Exception as e:
             logger.error(f"{provider} failed: {e}")
+            # Fallback to next provider
             for fallback_provider in self.providers:
                 if fallback_provider != provider:
                     try:
