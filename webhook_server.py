@@ -11,9 +11,9 @@ app = Flask(__name__)
 orch = Orchestrator()
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-# ---------- Alias mapping ----------
+# ---------- Alias mapping (fixed: added 'start', 'menu' without slash) ----------
 COMMAND_ALIASES = {
-    '/start': ['/start', '❓ help', 'help', '/menu'],
+    '/start': ['/start', '❓ help', 'help', '/menu', 'start', 'menu'],
     '/track': ['/track', '🔍 track', 'track', '☠️ hunt'],
     '/retrieve': ['/retrieve'],
     '/analyze': ['/analyze', '📊 analyze', 'analyze', '💀 slaughter'],
@@ -481,10 +481,7 @@ def webhook():
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
 
-        # ---------- Other existing commands (OSINT, utilities, admin) ----------
-        # We'll keep the minimal set to avoid duplication.
-        # The full set is assumed to be present; if not, the bot will fallback.
-
+        # ---------- Fallback for any other command ----------
         else:
             reply = "❓ Unknown command. Type <code>/start</code> or <code>/menu</code> for help."
             send_formatted_message(chat_id, reply)
