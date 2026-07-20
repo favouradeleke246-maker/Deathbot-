@@ -4,6 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
+# Install system dependencies (including wget/unzip for webdriver-manager)
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -31,19 +32,19 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Google Chrome
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install ChromeDriver from Debian (this is critical)
-RUN apt-get update && apt-get install -y chromium-chromedriver \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Ensure webdriver-manager is installed (it's already in requirements, but we can force)
+RUN pip install --no-cache-dir webdriver-manager
 
 COPY . .
 
