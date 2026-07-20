@@ -12,7 +12,7 @@ class WaSeleniumSender:
     def __init__(self, profile_dir='/app/whatsapp-profile'):
         self.profile_dir = profile_dir
         self.driver = None
-        self.driver_path = '/usr/bin/chromedriver'  # system-installed driver
+        self.driver_path = '/usr/bin/chromedriver'
 
     def _get_driver(self):
         if self.driver is None:
@@ -44,7 +44,24 @@ class WaSeleniumSender:
             return {'success': True, 'output': f'Message sent to {phone}.'}
         except Exception as e:
             logger.error(f'WhatsApp send error: {e}')
-            return {'success': False, 'output': str(e)}
+            return {'success': False, 'output': str(e))
+
+    def send_image(self, phone, image_path, caption=''):
+        driver = self._get_driver()
+        chat_url = f'https://web.whatsapp.com/send?phone={phone}'
+        driver.get(chat_url)
+        try:
+            wait = WebDriverWait(driver, 20)
+            attach_button = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@title="Attach"]')))
+            attach_button.click()
+            file_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@accept="*/*"]')))
+            file_input.send_keys(os.path.abspath(image_path))
+            send_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-testid="compose-btn-send"]')))
+            send_button.click()
+            return {'success': True, 'output': f'Image sent to {phone}'}
+        except Exception as e:
+            logger.error(f'WhatsApp image send error: {e}')
+            return {'success': False, 'output': str(e))
 
     def close(self):
         if self.driver:
