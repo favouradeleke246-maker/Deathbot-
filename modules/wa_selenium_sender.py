@@ -44,7 +44,7 @@ class WaSeleniumSender:
             return {'success': True, 'output': f'Message sent to {phone}.'}
         except Exception as e:
             logger.error(f'WhatsApp send error: {e}')
-            return {'success': False, 'output': str(e))
+            return {'success': False, 'output': str(e)}   # FIXED: removed extra ')'
 
     def send_image(self, phone, image_path, caption=''):
         driver = self._get_driver()
@@ -61,7 +61,7 @@ class WaSeleniumSender:
             return {'success': True, 'output': f'Image sent to {phone}'}
         except Exception as e:
             logger.error(f'WhatsApp image send error: {e}')
-            return {'success': False, 'output': str(e))
+            return {'success': False, 'output': str(e)}
 
     def close(self):
         if self.driver:
