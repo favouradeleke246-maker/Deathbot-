@@ -27,3 +27,4 @@ redis>=5.0.0
 openai>=1.0.0
 stem>=1.8.0
 vaderSentiment>=3.3.2
+Pillow>=10.0.0
