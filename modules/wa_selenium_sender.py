@@ -6,13 +6,14 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 from modules.utils import logger
 
 class WaSeleniumSender:
     def __init__(self, profile_dir='/app/whatsapp-profile'):
         self.profile_dir = profile_dir
         self.driver = None
-        self.driver_path = '/usr/bin/chromedriver'
+        # We'll set driver_path dynamically
 
     def _get_driver(self):
         if self.driver is None:
@@ -25,10 +26,28 @@ class WaSeleniumSender:
             options.binary_location = '/usr/bin/google-chrome'
             options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-            service = Service(self.driver_path)
-            self.driver = webdriver.Chrome(service=service, options=options)
-            self.driver.get('https://web.whatsapp.com')
-            time.sleep(5)
+            # Try webdriver-manager first (downloads matching driver)
+            try:
+                driver_path = ChromeDriverManager().install()
+                service = Service(driver_path)
+                self.driver = webdriver.Chrome(service=service, options=options)
+                self.driver.get('https://web.whatsapp.com')
+                time.sleep(5)
+                return self.driver
+            except Exception as e:
+                logger.warning(f"WebDriverManager failed: {e}. Falling back to system chromedriver.")
+
+            # Fallback to system chromedriver
+            try:
+                service = Service('/usr/bin/chromedriver')
+                self.driver = webdriver.Chrome(service=service, options=options)
+                self.driver.get('https://web.whatsapp.com')
+                time.sleep(5)
+                return self.driver
+            except Exception as e2:
+                logger.error(f"System chromedriver also failed: {e2}")
+                raise RuntimeError("No working ChromeDriver found. Please ensure Chrome is installed and driver accessible.")
+
         return self.driver
 
     def send_message(self, phone, message):
@@ -44,7 +63,7 @@ class WaSeleniumSender:
             return {'success': True, 'output': f'Message sent to {phone}.'}
         except Exception as e:
             logger.error(f'WhatsApp send error: {e}')
-            return {'success': False, 'output': str(e)}   # FIXED: removed extra ')'
+            return {'success': False, 'output': str(e)}
 
     def send_image(self, phone, image_path, caption=''):
         driver = self._get_driver()
