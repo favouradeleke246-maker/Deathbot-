@@ -27,7 +27,7 @@ class WaSeleniumSender:
         options.binary_location = '/usr/bin/google-chrome'
         options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-        # FIRST: Try system installed chromedriver (now at /usr/local/bin/chromedriver)
+        # FIRST: Try system installed chromedriver (if present)
         try:
             service = Service('/usr/local/bin/chromedriver')
             self.driver = webdriver.Chrome(service=service, options=options)
@@ -57,7 +57,13 @@ class WaSeleniumSender:
         driver.get(chat_url)
         try:
             wait = WebDriverWait(driver, 20)
-            message_box = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
+            # Check if the chat page loaded (message box present)
+            try:
+                wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
+            except Exception:
+                # If not, the phone number may be invalid or not registered
+                return {'success': False, 'output': 'Phone number may not be registered on WhatsApp or the profile is invalid.'}
+            message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')
             message_box.send_keys(message)
             send_button = driver.find_element(By.XPATH, '//button[@data-testid="compose-btn-send"]')
             send_button.click()
