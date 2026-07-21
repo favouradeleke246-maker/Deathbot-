@@ -27,29 +27,52 @@ class WaSeleniumSender:
         options.binary_location = '/usr/bin/google-chrome'
         options.add_argument(f'--user-data-dir={self.profile_dir}')
 
-        # FIRST: Try system installed chromedriver (if present)
+        # FIRST: Try system chromedriver
         try:
             service = Service('/usr/local/bin/chromedriver')
             self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.get('https://web.whatsapp.com')
             time.sleep(5)
             logger.info("Using system chromedriver at /usr/local/bin/chromedriver")
-            return self.driver
         except Exception as e:
             logger.warning(f"System chromedriver failed: {e}")
+            # SECOND: Fallback to webdriver-manager
+            try:
+                driver_path = ChromeDriverManager().install()
+                service = Service(driver_path)
+                self.driver = webdriver.Chrome(service=service, options=options)
+                self.driver.get('https://web.whatsapp.com')
+                time.sleep(5)
+                logger.info("Using webdriver-manager downloaded driver")
+            except Exception as e2:
+                logger.error(f"WebDriverManager also failed: {e2}")
+                raise RuntimeError("No ChromeDriver available. Please check installation.")
 
-        # SECOND: Use webdriver-manager (fallback)
+        # Check if session is valid by looking for QR code
         try:
-            driver_path = ChromeDriverManager().install()
-            service = Service(driver_path)
-            self.driver = webdriver.Chrome(service=service, options=options)
-            self.driver.get('https://web.whatsapp.com')
-            time.sleep(5)
-            logger.info("Using webdriver-manager downloaded driver")
-            return self.driver
-        except Exception as e2:
-            logger.error(f"WebDriverManager also failed: {e2}")
-            raise RuntimeError("No ChromeDriver available. Please check installation.")
+            # Wait for a short time to see if QR appears
+            qr_element = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="qrcode"]'))
+            )
+            # If we find QR, session is invalid
+            logger.error("QR code detected – session expired. Please re-export cookies.")
+            self.driver.quit()
+            self.driver = None
+            raise RuntimeError("WhatsApp Web session expired. Please export fresh cookies and update the profile.")
+        except:
+            # QR code not found – session may be valid, continue
+            pass
+
+        # Ensure chat list is loaded (optional check)
+        try:
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.XPATH, '//div[@data-testid="chat-list"]'))
+            )
+            logger.info("WhatsApp Web session appears valid.")
+        except:
+            logger.warning("Chat list not found – session may still be okay.")
+
+        return self.driver
 
     def send_message(self, phone, message):
         driver = self._get_driver()
@@ -57,11 +80,10 @@ class WaSeleniumSender:
         driver.get(chat_url)
         try:
             wait = WebDriverWait(driver, 20)
-            # Check if the chat page loaded (message box present)
+            # Check if message box is present
             try:
                 wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
             except Exception:
-                # If not, the phone number may be invalid or not registered
                 return {'success': False, 'output': 'Phone number may not be registered on WhatsApp or the profile is invalid.'}
             message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')
             message_box.send_keys(message)
