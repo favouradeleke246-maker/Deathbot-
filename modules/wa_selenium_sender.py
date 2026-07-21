@@ -42,24 +42,22 @@ class WaSeleniumSender:
             self.driver = webdriver.Chrome(service=service, options=options)
 
         self.driver.get('https://web.whatsapp.com')
-        time.sleep(5)
+        logger.info("Waiting for WhatsApp Web to load...")
+        time.sleep(10)
 
-        # Check if QR code is present (session invalid)
+        # Check for QR code (expired session)
         try:
             qr = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, '//div[@data-testid="qrcode"]'))
             )
-            logger.info("QR code detected – session expired. You need to scan the QR code once.")
-            # We'll keep the session alive – the user will need to scan QR once.
-            # For headless, we can't scan, so we raise an error.
+            logger.error("QR code detected – session expired. Please refresh profile.")
             self.driver.quit()
             self.driver = None
-            raise RuntimeError("WhatsApp Web session expired. Please run the bot once in non‑headless mode to scan QR, or provide valid profile.")
+            raise RuntimeError("WhatsApp Web session expired. Please provide a valid profile.")
         except:
-            # QR not found – session may be valid
             pass
 
-        # Wait for chat list to load
+        # Wait for chat list (session valid)
         try:
             WebDriverWait(self.driver, 30).until(
                 EC.presence_of_element_located((By.XPATH, '//div[@data-testid="chat-list"]'))
@@ -67,7 +65,7 @@ class WaSeleniumSender:
             logger.info("WhatsApp Web session is valid.")
         except Exception as e:
             logger.warning(f"Chat list not loaded within 30s: {e}")
-            # Still proceed – sometimes it's slow
+            # Proceed anyway – sometimes it's slow but still works
 
         return self.driver
 
@@ -75,12 +73,17 @@ class WaSeleniumSender:
         driver = self._get_driver()
         chat_url = f'https://web.whatsapp.com/send?phone={phone}'
         driver.get(chat_url)
+        # Wait for page to load
+        time.sleep(5)
         try:
-            wait = WebDriverWait(driver, 20)
+            wait = WebDriverWait(driver, 30)
             # Wait for message input
             try:
                 wait.until(EC.presence_of_element_located((By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')))
             except Exception:
+                # Check if we got redirected to the QR page (session died)
+                if "qr" in driver.current_url or "qrcode" in driver.page_source:
+                    return {'success': False, 'output': 'Session expired. Please refresh profile.'}
                 return {'success': False, 'output': 'Phone number may not be registered on WhatsApp or profile is invalid.'}
             message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="10"]')
             message_box.send_keys(message)
@@ -95,8 +98,9 @@ class WaSeleniumSender:
         driver = self._get_driver()
         chat_url = f'https://web.whatsapp.com/send?phone={phone}'
         driver.get(chat_url)
+        time.sleep(5)
         try:
-            wait = WebDriverWait(driver, 20)
+            wait = WebDriverWait(driver, 30)
             attach_button = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@title="Attach"]')))
             attach_button.click()
             file_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@accept="*/*"]')))
